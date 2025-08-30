@@ -10,7 +10,7 @@
                 <div class="text-center">
                     <img class="profile-user-img img-fluid"
                          style="width: 300px; height: 300px; object-fit: contain; border: none; padding: 0;"
-                         src="{{ asset('storage/' . $business->logo_path) }}"
+                         src="{{ $business->logo_path ? asset('storage/' . $business->logo_path) : 'https://via.placeholder.com/300' }}"
                          alt="Business logo">
                 </div>
 
@@ -50,7 +50,10 @@
                 <p class="text-muted">{{ $business->email }}</p>
             </div>
             <div class="card-footer">
-                <a href="{{ route('business.edit') }}" class="btn btn-primary">Edit Details</a>
+                {{-- ============================================================= --}}
+                {{-- === THE FIX IS HERE: We must pass the $business object      === --}}
+                {{-- ============================================================= --}}
+                <a href="{{ route('business.edit', $business) }}" class="btn btn-primary">Edit Details</a>
             </div>
         </div>
     </div>

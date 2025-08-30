@@ -49,8 +49,14 @@
         <div class="col-md-6 form-group"><label for="department">Department</label><div class="input-group"><select name="department" id="department" class="form-control"><option value="">Select a Department</option>@foreach($departments as $department)<option value="{{ $department->name }}" @if(old('department', $employee->department ?? '') == $department->name) selected @endif>{{ $department->name }}</option>@endforeach</select><div class="input-group-append"><button class="btn btn-success" type="button" data-toggle="modal" data-target="#addDepartmentModal">+</button></div></div>@error('department') <div class="text-danger mt-1">{{ $message }}</div> @enderror</div>
     </div>
     <div class="row">
-        <div class="col-md-6 form-group"><label for="joining_date">Date of Joining</label><input type="date" name="joining_date" class="form-control" id="joining_date" value="{{ old('joining_date', $employee->joining_date ?? '') }}">@error('joining_date') <div class="text-danger mt-1">{{ $message }}</div> @enderror</div>
-        <div class="col-md-6 form-group"><label for="status">Status</label><select name="status" id="status" class="form-control"><option value="active" @if(old('status', $employee->status ?? 'active') == 'active') selected @endif>Active</option><option value="resigned" @if(old('status', $employee->status ?? '') == 'resigned') selected @endif>Resigned</option><option value="terminated" @if(old('status', $employee->status ?? '') == 'terminated') selected @endif>Terminated</option></select>@error('status') <div class="text-danger mt-1">{{ $message }}</div> @enderror</div>
+        <div class="col-md-4 form-group"><label for="joining_date">Date of Joining</label><input type="date" name="joining_date" class="form-control" id="joining_date" value="{{ old('joining_date', $employee->joining_date ?? '') }}">@error('joining_date') <div class="text-danger mt-1">{{ $message }}</div> @enderror</div>
+        <div class="col-md-4 form-group"><label for="status">Status</label><select name="status" id="status" class="form-control"><option value="active" @if(old('status', $employee->status ?? 'active') == 'active') selected @endif>Active</option><option value="resigned" @if(old('status', $employee->status ?? '') == 'resigned') selected @endif>Resigned</option><option value="terminated" @if(old('status', $employee->status ?? '') == 'terminated') selected @endif>Terminated</option></select>@error('status') <div class="text-danger mt-1">{{ $message }}</div> @enderror</div>
+        <div class="col-md-4 form-group"><label for="probation_period">Probation Period (Months)</label><input type="number" name="probation_period" class="form-control" id="probation_period" value="{{ old('probation_period', $employee->probation_period ?? 3) }}">@error('probation_period') <div class="text-danger mt-1">{{ $message }}</div> @enderror</div>
+    </div>
+    <div class="form-group">
+        <label for="job_description">Job Description / Responsibilities</label>
+        <textarea name="job_description" class="form-control" id="job_description" rows="4">{{ old('job_description', $employee->job_description ?? '') }}</textarea>
+        @error('job_description') <div class="text-danger mt-1">{{ $message }}</div> @enderror
     </div>
 
     <hr><h5 class="mt-4 mb-3">Qualifications</h5>
@@ -110,6 +116,28 @@
         <div class="col-md-2 form-group"><label for="leaves_annual">Annual</label><input type="number" name="leaves_annual" class="form-control leave-component" id="leaves_annual" value="{{ old('leaves_annual', $employee->leaves_annual ?? 0) }}"></div>
         <div class="col-md-2 form-group"><label for="leaves_other">Other</label><input type="number" name="leaves_other" class="form-control leave-component" id="leaves_other" value="{{ old('leaves_other', $employee->leaves_other ?? 0) }}"></div>
         <div class="col-md-4 form-group"><label for="total_leaves">Total Leaves</label><input type="number" class="form-control" id="total_leaves" readonly></div>
+    </div>
+    
+    <hr><h5 class="mt-4 mb-3">Bank Account Details</h5>
+    <div class="row">
+        <div class="col-md-6 form-group">
+            <label for="bank_account_title">Account Title</label>
+            <input type="text" name="bank_account_title" class="form-control" id="bank_account_title" value="{{ old('bank_account_title', $employee->bank_account_title ?? '') }}">
+        </div>
+        <div class="col-md-6 form-group">
+            <label for="bank_account_number">Account Number</label>
+            <input type="text" name="bank_account_number" class="form-control" id="bank_account_number" value="{{ old('bank_account_number', $employee->bank_account_number ?? '') }}">
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-6 form-group">
+            <label for="bank_name">Bank Name</label>
+            <input type="text" name="bank_name" class="form-control" id="bank_name" value="{{ old('bank_name', $employee->bank_name ?? '') }}">
+        </div>
+        <div class="col-md-6 form-group">
+            <label for="bank_branch">Branch Name & Code</label>
+            <input type="text" name="bank_branch" class="form-control" id="bank_branch" value="{{ old('bank_branch', $employee->bank_branch ?? '') }}">
+        </div>
     </div>
     
     <hr><h5 class="mt-4 mb-3">Other Documents</h5>

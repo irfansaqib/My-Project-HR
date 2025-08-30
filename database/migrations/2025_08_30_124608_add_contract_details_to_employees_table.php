@@ -6,18 +6,24 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
         Schema::table('employees', function (Blueprint $table) {
-            $table->string('photo_path')->nullable()->after('employee_number');
-            $table->string('attachment_path')->nullable()->after('photo_path');
+            $table->integer('probation_period')->nullable()->comment('In months')->after('status');
+            $table->text('job_description')->nullable()->after('probation_period');
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::table('employees', function (Blueprint $table) {
-            $table->dropColumn(['photo_path', 'attachment_path']);
+            $table->dropColumn(['probation_period', 'job_description']);
         });
     }
 };

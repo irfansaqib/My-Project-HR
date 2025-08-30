@@ -16,7 +16,14 @@
 <div class="card">
     <div class="card-header">
         <h3 class="card-title">Employee List</h3>
-        <a href="{{ route('employees.create') }}" class="btn btn-primary float-right">Add New Employee</a>
+        
+        {{-- ======================================================================== --}}
+        {{-- === THIS BUTTON IS NOW VISIBLE ONLY TO USERS WITH PERMISSION       === --}}
+        {{-- ======================================================================== --}}
+        @can('manage employees')
+            <a href="{{ route('employees.create') }}" class="btn btn-primary float-right">Add New Employee</a>
+        @endcan
+
     </div>
     <div class="card-body">
         <div class="table-responsive">

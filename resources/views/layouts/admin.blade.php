@@ -61,7 +61,19 @@
             <nav class="mt-2">
                 <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
                     <li class="nav-item"><a href="{{ route('dashboard') }}" class="nav-link"><i class="nav-icon fas fa-tachometer-alt"></i><p>Dashboard</p></a></li>
-                    <li class="nav-item"><a href="{{ route('business.show') }}" class="nav-link"><i class="nav-icon fas fa-briefcase"></i><p>Business Profile</p></a></li>
+                    
+                    {{-- ============================================================= --}}
+                    {{-- === THIS IS THE CORRECTED LOGIC TO FIX THE ERROR          === --}}
+                    {{-- ============================================================= --}}
+                    @if (Auth::user() && Auth::user()->business)
+                        {{-- If user HAS a business, link directly to their profile page --}}
+                        <li class="nav-item"><a href="{{ route('business.show', Auth::user()->business) }}" class="nav-link"><i class="nav-icon fas fa-briefcase"></i><p>Business Profile</p></a></li>
+                    @else
+                        {{-- If user does NOT have a business, link to the create page --}}
+                        <li class="nav-item"><a href="{{ route('business.create') }}" class="nav-link"><i class="nav-icon fas fa-plus-circle"></i><p>Create Business</p></a></li>
+                    @endif
+                    {{-- ============================================================= --}}
+                    
                     <li class="nav-item"><a href="{{ route('users.index') }}" class="nav-link"><i class="nav-icon fas fa-users"></i><p>Users</p></a></li>
                     <li class="nav-item"><a href="{{ route('client-credentials.index') }}" class="nav-link"><i class="nav-icon fas fa-key"></i><p>Client Credentials</p></a></li>
                     <li class="nav-item"><a href="{{ route('customers.index') }}" class="nav-link"><i class="nav-icon fas fa-address-book"></i><p>Customers</p></a></li>

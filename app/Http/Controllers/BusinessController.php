@@ -2,47 +2,52 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use App\Models\Business;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class BusinessController extends Controller
 {
+    use AuthorizesRequests;
+
     /**
-     * Display the business details of the authenticated user.
+     * Display the specified business.
      */
-    public function show()
+    public function show(Business $business): View
     {
-        $business = Auth::user()->business;
+        $this->authorize('view', $business);
         return view('business.show', compact('business'));
     }
 
     /**
-     * Show the form for creating a new business detail.
+     * Show the form for creating a new business.
      */
-    public function create()
+    public function create(): View
     {
         return view('business.create');
     }
 
     /**
-     * Store a newly created business detail in storage.
+     * Store a newly created business.
      */
     public function store(Request $request)
     {
         $validatedData = $request->validate([
             'legal_name' => 'required|string|max:255',
             'business_name' => 'required|string|max:255',
-            'business_type' => 'required|string',
+            // === VALIDATION RULE UPDATED ===
+            'business_type' => ['required', Rule::in(['Individual', 'Partnership', 'Company'])],
             'ntn_number' => 'nullable|string|max:255',
             'registration_number' => 'required|string|max:255',
             'address' => 'required|string',
             'phone_number' => 'required|string|max:20',
             'email' => 'required|email|max:255|unique:businesses',
-            'logo' => 'nullable|image|mimes:png|max:2048',
+            'logo' => 'nullable|image|mimes:png,jpg|max:2048',
         ]);
 
         $logoPath = null;
@@ -51,7 +56,7 @@ class BusinessController extends Controller
         }
 
         $business = Business::create([
-            'user_id' => Auth::id(), // Link business to its owner
+            'user_id' => Auth::id(),
             'legal_name' => $validatedData['legal_name'],
             'business_name' => $validatedData['business_name'],
             'business_type' => $validatedData['business_type'],
@@ -63,42 +68,41 @@ class BusinessController extends Controller
             'logo_path' => $logoPath,
         ]);
 
-        // **Crucial Step**: Update the owner's record with the new business ID
         Auth::user()->update(['business_id' => $business->id]);
 
-        return Redirect::route('dashboard')->with('success', 'Business details saved successfully!');
+        return Redirect::route('business.show', $business)->with('success', 'Business details saved successfully!');
     }
 
     /**
-     * Show the form for editing the business detail.
+     * Show the form for editing the business.
      */
-    public function edit()
+    public function edit(Business $business): View
     {
-        $business = Auth::user()->business;
+        $this->authorize('update', $business);
         return view('business.edit', compact('business'));
     }
 
     /**
-     * Update the business detail in storage.
+     * Update the specified business.
      */
-    public function update(Request $request)
+    public function update(Request $request, Business $business)
     {
-        $business = Auth::user()->business;
+        $this->authorize('update', $business);
 
         $validatedData = $request->validate([
             'legal_name' => 'required|string|max:255',
             'business_name' => 'required|string|max:255',
-            'business_type' => 'required|string',
+            // === VALIDATION RULE UPDATED ===
+            'business_type' => ['required', Rule::in(['Individual', 'Partnership', 'Company'])],
             'ntn_number' => 'nullable|string|max:255',
             'registration_number' => 'required|string|max:255',
             'address' => 'required|string',
             'phone_number' => 'required|string|max:20',
             'email' => ['required', 'email', 'max:255', Rule::unique('businesses')->ignore($business->id)],
-            'logo' => 'nullable|image|mimes:png|max:2048',
+            'logo' => 'nullable|image|mimes:png,jpg|max:2048',
         ]);
 
         if ($request->hasFile('logo')) {
-            // Delete old logo if it exists
             if ($business->logo_path) {
                 Storage::disk('public')->delete($business->logo_path);
             }
@@ -107,6 +111,6 @@ class BusinessController extends Controller
 
         $business->update($validatedData);
 
-        return Redirect::route('business.show')->with('success', 'Business details updated successfully!');
+        return Redirect::route('business.show', $business)->with('success', 'Business details updated successfully!');
     }
 }

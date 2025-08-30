@@ -9,16 +9,34 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CheckBusinessDetails
 {
+    /**
+     * Handle an incoming request.
+     *
+     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     */
     public function handle(Request $request, Closure $next): Response
     {
-        // Check only applies to users with the 'owner' role who haven't created a business yet
-        if (Auth::check() && Auth::user()->role === 'owner' && is_null(Auth::user()->business_id)) {
+        $user = Auth::user();
 
-            if (!$request->routeIs('business.create') && !$request->routeIs('business.store')) {
-                return redirect()->route('business.create');
+        // Check if the user is authenticated
+        if ($user) {
+            // SCENARIO 1: The user does NOT have a business.
+            if (!$user->business) {
+                // If they are not already trying to create a business, force them to that page.
+                if (!$request->routeIs('business.create') && !$request->routeIs('business.store')) {
+                    return redirect()->route('business.create');
+                }
+            } 
+            // SCENARIO 2: The user ALREADY HAS a business.
+            else {
+                // If they try to visit the create page again, redirect them away to their dashboard.
+                if ($request->routeIs('business.create')) {
+                    return redirect()->route('dashboard');
+                }
             }
         }
 
+        // Otherwise, allow the request to continue.
         return $next($request);
     }
 }

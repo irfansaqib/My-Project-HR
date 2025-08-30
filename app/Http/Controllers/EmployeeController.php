@@ -14,18 +14,20 @@ use Illuminate\Validation\Rule;
 
 class EmployeeController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+    public function __construct()
+    {
+        $this->middleware('permission:employee-view')->only(['index', 'show', 'print', 'printContract']);
+        $this->middleware('permission:employee-create')->only(['create', 'store']);
+        $this->middleware('permission:employee-edit')->only(['edit', 'update']);
+        $this->middleware('permission:employee-delete')->only('destroy');
+    }
+
     public function index()
     {
-        $employees = Employee::where('business_id', Auth::user()->business_id)->orderBy('name')->get();
+        $employees = Employee::orderBy('name')->get();
         return view('employees.index', compact('employees'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
         $designations = Designation::where('business_id', Auth::user()->business_id)->orderBy('name')->get();
@@ -33,13 +35,9 @@ class EmployeeController extends Controller
         return view('employees.create', compact('designations', 'departments'));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            // Personal & Contact Info
             'name' => 'required|string|max:255',
             'father_name' => 'nullable|string|max:255',
             'cnic' => ['required', 'string', 'regex:/^\d{5}-\d{7}-\d{1}$/', Rule::unique('employees')->where('business_id', Auth::user()->business_id)],
@@ -51,28 +49,30 @@ class EmployeeController extends Controller
             'emergency_contact_name' => 'nullable|string|max:255',
             'emergency_contact_relation' => 'nullable|string|max:255',
             'emergency_contact_phone' => 'nullable|string|max:255',
-            // Employment Info
             'designation' => 'required|string|max:255',
             'department' => 'nullable|string|max:255',
             'joining_date' => 'nullable|date',
             'status' => 'required|string',
-            // Salary & Leaves
+            'probation_period' => 'nullable|integer|min:0',
+            'job_description' => 'nullable|string',
             'basic_salary' => 'nullable|numeric|min:0',
             'house_rent' => 'nullable|numeric|min:0',
             'utilities' => 'nullable|numeric|min:0',
             'medical' => 'nullable|numeric|min:0',
             'conveyance' => 'nullable|numeric|min:0',
             'other_allowance' => 'nullable|numeric|min:0',
+            'bank_account_title' => 'nullable|string|max:255',
+            'bank_account_number' => 'nullable|string|max:255',
+            'bank_name' => 'nullable|string|max:255',
+            'bank_branch' => 'nullable|string|max:255',
             'leaves_sick' => 'nullable|integer|min:0',
             'leaves_casual' => 'nullable|integer|min:0',
             'leaves_annual' => 'nullable|integer|min:0',
             'leaves_other' => 'nullable|integer|min:0',
             'leave_period_from' => 'nullable|date',
             'leave_period_to' => 'nullable|date|after_or_equal:leave_period_from',
-            // Attachments
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'attachment' => 'nullable|file|mimes:pdf,jpg,png|max:5120',
-            // Dynamic Fields
             'qualifications' => 'nullable|array',
             'qualifications.*.degree_title' => 'required_with:qualifications|string|max:255',
             'qualifications.*.institute' => 'required_with:qualifications|string|max:255',
@@ -86,12 +86,14 @@ class EmployeeController extends Controller
 
         $photoPath = null;
         if ($request->hasFile('photo')) {
-            $photoPath = $request->file('photo')->store('employee_photos', 'public');
+            $photoPath = $request->file('photo')->store('employee_photos/' . Auth::user()->business_id, 'public');
         }
         $attachmentPath = null;
         if ($request->hasFile('attachment')) {
-            $attachmentPath = $request->file('attachment')->store('employee_attachments', 'public');
+            $attachmentPath = $request->file('attachment')->store('employee_attachments/' . Auth::user()->business_id, 'public');
         }
+
+        unset($validated['photo'], $validated['attachment'], $validated['qualifications'], $validated['experiences']);
 
         if (empty($validated['joining_date'])) {
             $validated['joining_date'] = Carbon::now()->toDateString();
@@ -116,37 +118,21 @@ class EmployeeController extends Controller
         return Redirect::route('employees.index')->with('success', 'Employee created successfully!');
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(Employee $employee)
     {
-        if ($employee->business_id !== Auth::user()->business_id) { abort(403); }
-        $employee->load('qualifications', 'experiences');
         return view('employees.show', compact('employee'));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(Employee $employee)
     {
-        if ($employee->business_id !== Auth::user()->business_id) { abort(403); }
-        $employee->load('qualifications', 'experiences');
         $designations = Designation::where('business_id', Auth::user()->business_id)->orderBy('name')->get();
         $departments = Department::where('business_id', Auth::user()->business_id)->orderBy('name')->get();
         return view('employees.edit', compact('employee', 'designations', 'departments'));
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, Employee $employee)
     {
-        if ($employee->business_id !== Auth::user()->business_id) { abort(403); }
-
         $validated = $request->validate([
-            // Personal & Contact Info
             'name' => 'required|string|max:255',
             'father_name' => 'nullable|string|max:255',
             'cnic' => ['required', 'string', 'regex:/^\d{5}-\d{7}-\d{1}$/', Rule::unique('employees')->where('business_id', Auth::user()->business_id)->ignore($employee->id)],
@@ -158,28 +144,30 @@ class EmployeeController extends Controller
             'emergency_contact_name' => 'nullable|string|max:255',
             'emergency_contact_relation' => 'nullable|string|max:255',
             'emergency_contact_phone' => 'nullable|string|max:255',
-            // Employment Info
             'designation' => 'required|string|max:255',
             'department' => 'nullable|string|max:255',
             'joining_date' => 'nullable|date',
             'status' => 'required|string',
-             // Salary & Leaves
+            'probation_period' => 'nullable|integer|min:0',
+            'job_description' => 'nullable|string',
             'basic_salary' => 'nullable|numeric|min:0',
             'house_rent' => 'nullable|numeric|min:0',
             'utilities' => 'nullable|numeric|min:0',
             'medical' => 'nullable|numeric|min:0',
             'conveyance' => 'nullable|numeric|min:0',
             'other_allowance' => 'nullable|numeric|min:0',
+            'bank_account_title' => 'nullable|string|max:255',
+            'bank_account_number' => 'nullable|string|max:255',
+            'bank_name' => 'nullable|string|max:255',
+            'bank_branch' => 'nullable|string|max:255',
             'leaves_sick' => 'nullable|integer|min:0',
             'leaves_casual' => 'nullable|integer|min:0',
             'leaves_annual' => 'nullable|integer|min:0',
             'leaves_other' => 'nullable|integer|min:0',
             'leave_period_from' => 'nullable|date',
             'leave_period_to' => 'nullable|date|after_or_equal:leave_period_from',
-            // Attachments
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'attachment' => 'nullable|file|mimes:pdf,jpg,png|max:5120',
-            // Dynamic Fields
             'qualifications' => 'nullable|array',
             'qualifications.*.degree_title' => 'required_with:qualifications|string|max:255',
             'qualifications.*.institute' => 'required_with:qualifications|string|max:255',
@@ -190,24 +178,24 @@ class EmployeeController extends Controller
             'experiences.*.from_date' => 'required_with:experiences|date',
             'experiences.*.to_date' => 'required_with:experiences|date|after_or_equal:experiences.*.from_date',
         ]);
-
+        
         if ($request->hasFile('photo')) {
             if ($employee->photo_path) { Storage::disk('public')->delete($employee->photo_path); }
-            $validated['photo_path'] = $request->file('photo')->store('employee_photos', 'public');
+            $validated['photo_path'] = $request->file('photo')->store('employee_photos/' . Auth::user()->business_id, 'public');
         }
         if ($request->hasFile('attachment')) {
             if ($employee->attachment_path) { Storage::disk('public')->delete($employee->attachment_path); }
-            $validated['attachment_path'] = $request->file('attachment')->store('employee_attachments', 'public');
+            $validated['attachment_path'] = $request->file('attachment')->store('employee_attachments/' . Auth::user()->business_id, 'public');
         }
+        
+        unset($validated['photo'], $validated['attachment'], $validated['qualifications'], $validated['experiences']);
 
         $employee->update($validated);
 
-        // Sync Qualifications
         $employee->qualifications()->delete();
         if ($request->filled('qualifications')) {
             $employee->qualifications()->createMany($request->qualifications);
         }
-        // Sync Experiences
         $employee->experiences()->delete();
         if ($request->filled('experiences')) {
             $employee->experiences()->createMany($request->experiences);
@@ -216,25 +204,23 @@ class EmployeeController extends Controller
         return Redirect::route('employees.index')->with('success', 'Employee updated successfully!');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(Employee $employee)
     {
-        if ($employee->business_id !== Auth::user()->business_id) { abort(403); }
         if ($employee->photo_path) { Storage::disk('public')->delete($employee->photo_path); }
         if ($employee->attachment_path) { Storage::disk('public')->delete($employee->attachment_path); }
         $employee->delete();
         return Redirect::route('employees.index')->with('success', 'Employee deleted successfully!');
     }
     
-    /**
-     * Show the printable view for the specified employee.
-     */
     public function print(Employee $employee)
     {
-        if ($employee->business_id !== Auth::user()->business_id) { abort(403); }
         $business = Auth::user()->business;
         return view('employees.print', compact('employee', 'business'));
+    }
+
+    public function printContract(Employee $employee)
+    {
+        $business = Auth::user()->business;
+        return view('employees.contract', compact('employee', 'business'));
     }
 }

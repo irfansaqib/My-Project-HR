@@ -12,9 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            // Making the business_id nullable breaks the creation deadlock
-            $table->foreignId('business_id')->nullable()->constrained()->onDelete('cascade');
-            $table->string('role')->default('user');
+            // This column will link a user to an employee record.
+            // It's nullable because the main "Owner" user is not an employee.
+            $table->foreignId('employee_id')->nullable()->unique()->constrained()->onDelete('set null');
         });
     }
 
@@ -24,8 +24,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropForeign(['business_id']);
-            $table->dropColumn(['business_id', 'role']);
+            $table->dropForeign(['employee_id']);
+            $table->dropColumn('employee_id');
         });
     }
 };

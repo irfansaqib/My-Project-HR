@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('employees', function (Blueprint $table) {
-            $table->date('joining_date')->nullable()->change();
+        Schema::table('leave_requests', function (Blueprint $table) {
+            $table->foreignId('business_id')->after('id')->constrained()->onDelete('cascade');
         });
     }
 
@@ -21,8 +21,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('employees', function (Blueprint $table) {
-            $table->date('joining_date')->nullable(false)->change();
+        Schema::table('leave_requests', function (Blueprint $table) {
+            $table->dropForeign(['business_id']);
+            $table->dropColumn('business_id');
         });
     }
 };

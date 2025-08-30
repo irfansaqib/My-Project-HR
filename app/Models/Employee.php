@@ -2,27 +2,28 @@
 
 namespace App\Models;
 
+use App\Models\Traits\BelongsToBusiness;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Employee extends Model
 {
-    use HasFactory;
-
-    protected $fillable = [
-        'business_id', 'employee_number', 'photo_path', 'attachment_path', 'name', 
-        'father_name', 'cnic', 'dob', 'gender', 'phone', 'email', 'address',
-        'emergency_contact_name', 'emergency_contact_relation', 'emergency_contact_phone',
-        'designation', 'department', 'joining_date', 'status',
-        'basic_salary', 'house_rent', 'utilities', 'medical', 'conveyance', 'other_allowance',
-        'leaves_sick', 'leaves_casual', 'leaves_annual', 'leaves_other',
-        'leave_period_from', 'leave_period_to',
-    ];
+    use HasFactory, BelongsToBusiness;
 
     /**
-     * Get the employee's total salary by summing the components.
+     * We are using guarded which means all fields are fillable.
+     * This is simpler for your large forms.
+     */
+    protected $guarded = [];
+
+    /**
+     * The relationships that should always be loaded with the employee.
+     */
+    protected $with = ['qualifications', 'experiences'];
+
+    /**
+     * Accessor to automatically calculate the total salary.
      */
     protected function totalSalary(): Attribute
     {
@@ -38,7 +39,7 @@ class Employee extends Model
     }
 
     /**
-     * Get the employee's total allocated leaves.
+     * Accessor to automatically calculate the total leaves.
      */
     protected function totalLeaves(): Attribute
     {
@@ -51,13 +52,28 @@ class Employee extends Model
         );
     }
 
-    public function qualifications(): HasMany
+    // --- RELATIONSHIPS ---
+    public function qualifications()
     {
         return $this->hasMany(Qualification::class);
     }
 
-    public function experiences(): HasMany
+    public function experiences()
     {
         return $this->hasMany(Experience::class);
+    }
+
+    public function user()
+    {
+        return $this->hasOne(User::class);
+    }
+
+    /**
+     * Get all of the leave requests for the employee.
+     * THIS IS THE MISSING METHOD THAT FIXES THE ERROR.
+     */
+    public function leaveRequests()
+    {
+        return $this->hasMany(LeaveRequest::class);
     }
 }

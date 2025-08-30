@@ -28,30 +28,33 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     
-    // Modules
-    Route::resource('users', UserController::class);
-    Route::resource('client-credentials', ClientCredentialController::class);
-    Route::resource('customers', CustomerController::class);
+    // Business routes are handled by its specific Policy
+    Route::resource('business', BusinessController::class)->except(['index', 'destroy']);
     
-    Route::get('business', [BusinessController::class, 'show'])->name('business.show');
-    Route::post('business', [BusinessController::class, 'store'])->name('business.store');
+    // All other tenant-specific modules are grouped here
+    Route::middleware(['tenant.owner'])->group(function () {
+        Route::resource('users', UserController::class);
+        Route::resource('client-credentials', ClientCredentialController::class);
+        Route::resource('customers', CustomerController::class);
+        
+        // HR Management
+        Route::resource('designations', DesignationController::class)->except(['show']);
+        Route::resource('departments', DepartmentController::class)->except(['show']);
+        
+        Route::get('employees/{employee}/contract', [EmployeeController::class, 'printContract'])->name('employees.contract');
+        Route::get('employees/{employee}/print', [EmployeeController::class, 'print'])->name('employees.print');
+        Route::resource('employees', EmployeeController::class);
 
-    // HR Management
-    Route::resource('designations', DesignationController::class)->except(['show']);
-    Route::resource('departments', DepartmentController::class)->except(['show']);
-    
-    // New route for printing an employee form
-    Route::get('employees/{employee}/print', [EmployeeController::class, 'print'])->name('employees.print');
-    Route::resource('employees', EmployeeController::class);
-
-    // Leave Management
-    Route::get('leave-requests/extra', [LeaveRequestController::class, 'extraCreate'])->name('leave-requests.extra-create');
-    Route::post('leave-requests/extra', [LeaveRequestController::class, 'extraStore'])->name('leave-requests.extra-store');
-    Route::get('leave-requests/{leaveRequest}/print', [LeaveRequestController::class, 'print'])->name('leave-requests.print');
-    Route::patch('leave-requests/{leaveRequest}/approve', [LeaveRequestController::class, 'approve'])->name('leave-requests.approve');
-    Route::patch('leave-requests/{leaveRequest}/reject', [LeaveRequestController::class, 'reject'])->name('leave-requests.reject');
-    Route::resource('leave-requests', LeaveRequestController::class);
-
+        // ========================================================================
+        // === YOUR CUSTOM LEAVE ROUTES ARE RESTORED HERE                     ===
+        // ========================================================================
+        Route::get('leave-requests/extra', [LeaveRequestController::class, 'extraCreate'])->name('leave-requests.extra-create');
+        Route::post('leave-requests/extra', [LeaveRequestController::class, 'extraStore'])->name('leave-requests.extra-store');
+        Route::get('leave-requests/{leaveRequest}/print', [LeaveRequestController::class, 'print'])->name('leave-requests.print');
+        Route::patch('leave-requests/{leaveRequest}/approve', [LeaveRequestController::class, 'approve'])->name('leave-requests.approve');
+        Route::patch('leave-requests/{leaveRequest}/reject', [LeaveRequestController::class, 'reject'])->name('leave-requests.reject');
+        Route::resource('leave-requests', LeaveRequestController::class);
+    });
 });
 
 require __DIR__.'/auth.php';
