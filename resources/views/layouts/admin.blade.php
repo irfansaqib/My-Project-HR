@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
     <link rel="stylesheet" href="{{ asset('adminlte/plugins/fontawesome-free/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ asset('adminlte/dist/css/adminlte.min.css') }}">
+    @vite('resources/css/app.css')
 </head>
 <body class="hold-transition sidebar-mini">
 <div class="wrapper">
@@ -46,7 +47,7 @@
     </nav>
     <aside class="main-sidebar sidebar-dark-primary elevation-4">
         <a href="{{ route('dashboard') }}" class="brand-link">
-            <img src="{{ asset('adminlte/dist/img/AdminLTELogo.png') }}" alt="AdminLTE Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
+            <img src="{{ Auth::user()->business && Auth::user()->business->logo_path ? asset('storage/' . Auth::user()->business->logo_path) : asset('adminlte/dist/img/AdminLTELogo.png') }}" alt="Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
             <span class="brand-text font-weight-light">{{ config('app.name', 'Laravel') }}</span>
         </a>
         <div class="sidebar">
@@ -55,49 +56,54 @@
                     <img src="{{ asset('adminlte/dist/img/user2-160x160.jpg') }}" class="img-circle elevation-2" alt="User Image">
                 </div>
                 <div class="info">
-                    <a href="#" class="d-block">{{ Auth::user()->name ?? 'Guest User' }}</a>
+                    <a href="{{ route('profile.edit') }}" class="d-block">{{ Auth::user()->name ?? 'Guest User' }}</a>
                 </div>
             </div>
             <nav class="mt-2">
                 <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
-                    <li class="nav-item"><a href="{{ route('dashboard') }}" class="nav-link"><i class="nav-icon fas fa-tachometer-alt"></i><p>Dashboard</p></a></li>
+                    <li class="nav-item"><a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}"><i class="nav-icon fas fa-tachometer-alt"></i><p>Dashboard</p></a></li>
                     
-                    {{-- ============================================================= --}}
-                    {{-- === THIS IS THE CORRECTED LOGIC TO FIX THE ERROR          === --}}
-                    {{-- ============================================================= --}}
                     @if (Auth::user() && Auth::user()->business)
-                        {{-- If user HAS a business, link directly to their profile page --}}
-                        <li class="nav-item"><a href="{{ route('business.show', Auth::user()->business) }}" class="nav-link"><i class="nav-icon fas fa-briefcase"></i><p>Business Profile</p></a></li>
+                        <li class="nav-item"><a href="{{ route('business.show', Auth::user()->business) }}" class="nav-link {{ request()->routeIs('business.*') ? 'active' : '' }}"><i class="nav-icon fas fa-briefcase"></i><p>Business Profile</p></a></li>
                     @else
-                        {{-- If user does NOT have a business, link to the create page --}}
-                        <li class="nav-item"><a href="{{ route('business.create') }}" class="nav-link"><i class="nav-icon fas fa-plus-circle"></i><p>Create Business</p></a></li>
+                        <li class="nav-item"><a href="{{ route('business.create') }}" class="nav-link {{ request()->routeIs('business.create') ? 'active' : '' }}"><i class="nav-icon fas fa-plus-circle"></i><p>Create Business</p></a></li>
                     @endif
-                    {{-- ============================================================= --}}
                     
-                    <li class="nav-item"><a href="{{ route('users.index') }}" class="nav-link"><i class="nav-icon fas fa-users"></i><p>Users</p></a></li>
-                    <li class="nav-item"><a href="{{ route('client-credentials.index') }}" class="nav-link"><i class="nav-icon fas fa-key"></i><p>Client Credentials</p></a></li>
-                    <li class="nav-item"><a href="{{ route('customers.index') }}" class="nav-link"><i class="nav-icon fas fa-address-book"></i><p>Customers</p></a></li>
+                    <li class="nav-header">ADMINISTRATION</li>
+                    <li class="nav-item"><a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') || request()->routeIs('roles.*') ? 'active' : '' }}"><i class="nav-icon fas fa-users"></i><p>Users & Roles</p></a></li>
 
                     <li class="nav-header">HR MANAGEMENT</li>
-                    <li class="nav-item has-treeview">
+                    <li class="nav-item {{ request()->routeIs(['employees.*', 'designations.*', 'departments.*']) ? 'menu-open' : '' }}">
                         <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-user-tie"></i>
                             <p>Employees<i class="right fas fa-angle-left"></i></p>
                         </a>
                         <ul class="nav nav-treeview">
-                            <li class="nav-item"><a href="{{ route('employees.index') }}" class="nav-link"><i class="far fa-circle nav-icon"></i><p>Employee List</p></a></li>
-                            <li class="nav-item"><a href="{{ route('designations.index') }}" class="nav-link"><i class="far fa-circle nav-icon"></i><p>Designations</p></a></li>
-                            <li class="nav-item"><a href="{{ route('departments.index') }}" class="nav-link"><i class="far fa-circle nav-icon"></i><p>Departments</p></a></li>
+                            <li class="nav-item"><a href="{{ route('employees.index') }}" class="nav-link {{ request()->routeIs('employees.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Employee List</p></a></li>
+                            <li class="nav-item"><a href="{{ route('designations.index') }}" class="nav-link {{ request()->routeIs('designations.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Designations</p></a></li>
+                            <li class="nav-item"><a href="{{ route('departments.index') }}" class="nav-link {{ request()->routeIs('departments.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Departments</p></a></li>
                         </ul>
                     </li>
-                    <li class="nav-item has-treeview">
+                    <li class="nav-item {{ request()->routeIs(['salary-components.*', 'salaries.*', 'tax-rates.*']) ? 'menu-open' : '' }}">
                         <a href="#" class="nav-link">
-                            <i class="nav-icon fas fa-calendar-alt"></i>
-                            <p>Leaves<i class="right fas fa-angle-left"></i></p>
+                            <i class="nav-icon fas fa-file-invoice-dollar"></i>
+                            <p>Payroll<i class="right fas fa-angle-left"></i></p>
                         </a>
                         <ul class="nav nav-treeview">
-                            <li class="nav-item"><a href="{{ route('leave-requests.create') }}" class="nav-link"><i class="far fa-circle nav-icon"></i><p>Apply for Leave</p></a></li>
-                            <li class="nav-item"><a href="{{ route('leave-requests.index') }}" class="nav-link"><i class="far fa-circle nav-icon"></i><p>My Leaves & Approvals</p></a></li>
+                            <li class="nav-item"><a href="{{ route('salary-components.index') }}" class="nav-link {{ request()->routeIs('salary-components.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Salary Components</p></a></li>
+                            <li class="nav-item"><a href="{{ route('salaries.index') }}" class="nav-link {{ request()->routeIs('salaries.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Salary Sheets</p></a></li>
+                            {{-- THE FIX IS HERE: Changed route from 'tax-slabs.index' to 'tax-rates.index' --}}
+                            <li class="nav-item"><a href="{{ route('tax-rates.index') }}" class="nav-link {{ request()->routeIs('tax-rates.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Tax Rates</p></a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item {{ request()->routeIs('leave-requests.*') ? 'menu-open' : '' }}">
+                        <a href="#" class="nav-link">
+                            <i class="nav-icon fas fa-calendar-alt"></i>
+                            <p>Leave Management<i class="right fas fa-angle-left"></i></p>
+                        </a>
+                        <ul class="nav nav-treeview">
+                            <li class="nav-item"><a href="{{ route('leave-requests.create') }}" class="nav-link {{ request()->routeIs('leave-requests.create') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Apply for Leave</p></a></li>
+                            <li class="nav-item"><a href="{{ route('leave-requests.index') }}" class="nav-link {{ request()->routeIs('leave-requests.index') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Leave Applications</p></a></li>
                         </ul>
                     </li>
                 </ul>
@@ -106,15 +112,30 @@
     </aside>
 
     <div class="content-wrapper">
+        <section class="content-header">
+            <div class="container-fluid">
+                <div class="row mb-2">
+                    <div class="col-sm-6">
+                        <h1>@yield('title')</h1>
+                    </div>
+                </div>
+            </div>
+        </section>
         <div class="content">
-            <div class="container-fluid pt-3">
+            <div class="container-fluid">
+                @if(session('success'))
+                    <div class="alert alert-success">{{ session('success') }}</div>
+                @endif
+                 @if(session('error'))
+                    <div class="alert alert-danger">{{ session('error') }}</div>
+                @endif
                 @yield('content')
             </div>
         </div>
     </div>
 
     <footer class="main-footer">
-        <div class="float-right d-none d-sm-inline">Anything you want</div>
+        <div class="float-right d-none d-sm-inline">Version 1.0</div>
         <strong>Copyright &copy; 2024-2025 <a href="#">Your Company</a>.</strong> All rights reserved.
     </footer>
 </div>
@@ -123,6 +144,7 @@
 <script src="{{ asset('adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
 <script src="{{ asset('adminlte/dist/js/adminlte.min.js') }}"></script>
+@vite('resources/js/app.js')
 @stack('scripts')
 </body>
 </html>

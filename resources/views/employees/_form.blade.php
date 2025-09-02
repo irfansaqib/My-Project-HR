@@ -1,8 +1,44 @@
-<div class="modal fade" id="addDesignationModal" tabindex="-1">
-    <div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Add New Designation</h5></div><div class="modal-body"><input type="text" class="form-control" id="new_designation_name" placeholder="Designation Name"><div id="designation-error" class="text-danger mt-2 d-none"></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button><button type="button" class="btn btn-primary" id="saveDesignationBtn">Save</button></div></div></div>
+<div class="modal fade" id="addDesignationModal" tabindex="-1" aria-labelledby="addDesignationModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addDesignationModalLabel">Add New Designation</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="new_designation_name">Designation Name</label>
+                    <input type="text" class="form-control" id="new_designation_name">
+                    <div id="designation-error" class="text-danger mt-2 d-none"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="saveDesignationBtn">Save Designation</button>
+            </div>
+        </div>
+    </div>
 </div>
-<div class="modal fade" id="addDepartmentModal" tabindex="-1">
-    <div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Add New Department</h5></div><div class="modal-body"><input type="text" class="form-control" id="new_department_name" placeholder="Department Name"><div id="department-error" class="text-danger mt-2 d-none"></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button><button type="button" class="btn btn-primary" id="saveDepartmentBtn">Save</button></div></div></div>
+<div class="modal fade" id="addDepartmentModal" tabindex="-1" aria-labelledby="addDepartmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addDepartmentModalLabel">Add New Department</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="new_department_name">Department Name</label>
+                    <input type="text" class="form-control" id="new_department_name">
+                    <div id="department-error" class="text-danger mt-2 d-none"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="saveDepartmentBtn">Save Department</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="card-body">
@@ -92,30 +128,90 @@
     </div>
     <button type="button" class="btn btn-sm btn-success mb-3" id="add-experience">Add Experience</button>
 
-    <hr><h5 class="mt-4 mb-3">Salary Details</h5>
+    <hr><h5 class="mt-4 mb-3">Salary Package</h5>
     <div class="row">
-        <div class="col-md-3 form-group"><label for="basic_salary">Basic Salary</label><input type="number" step="0.01" name="basic_salary" class="form-control salary-component" id="basic_salary" value="{{ old('basic_salary', $employee->basic_salary ?? 0) }}"></div>
-        <div class="col-md-3 form-group"><label for="house_rent">House Rent</label><input type="number" step="0.01" name="house_rent" class="form-control salary-component" id="house_rent" value="{{ old('house_rent', $employee->house_rent ?? 0) }}"></div>
-        <div class="col-md-3 form-group"><label for="utilities">Utilities</label><input type="number" step="0.01" name="utilities" class="form-control salary-component" id="utilities" value="{{ old('utilities', $employee->utilities ?? 0) }}"></div>
-        <div class="col-md-3 form-group"><label for="medical">Medical</label><input type="number" step="0.01" name="medical" class="form-control salary-component" id="medical" value="{{ old('medical', $employee->medical ?? 0) }}"></div>
+        <div class="col-md-4 form-group">
+            <label for="basic_salary">Basic Salary <span class="text-danger">*</span></label>
+            <input type="number" step="0.01" name="basic_salary" class="form-control salary-calc" id="basic_salary" value="{{ old('basic_salary', $employee->basic_salary ?? 0) }}" required>
+        </div>
+    </div>
+    <div class="card card-outline card-success">
+        <div class="card-header"><h3 class="card-title">Allowances</h3></div>
+        <div class="card-body">
+            <div class="row">
+                @forelse ($allowances as $allowance)
+                    <div class="col-md-4 form-group">
+                        <label for="component_{{ $allowance->id }}">{{ $allowance->name }}</label>
+                        <input type="number" step="0.01" name="components[{{ $allowance->id }}]" class="form-control salary-calc allowance" id="component_{{ $allowance->id }}" 
+                               value="{{ old('components.'.$allowance->id, isset($employee) ? ($employee->salaryComponents->find($allowance->id)->pivot->amount ?? 0) : 0) }}">
+                    </div>
+                @empty
+                    <div class="col-12"><p class="text-muted">No allowance components defined. Please add them in <a href="{{ route('salary-components.index') }}">Salary Components</a>.</p></div>
+                @endforelse
+            </div>
+        </div>
+    </div>
+    <div class="card card-outline card-danger mt-3">
+        <div class="card-header"><h3 class="card-title">Deductions</h3></div>
+        <div class="card-body">
+            <div class="row">
+                @forelse ($deductions as $deduction)
+                    <div class="col-md-4 form-group">
+                        <label for="component_{{ $deduction->id }}">{{ $deduction->name }}</label>
+                        <input type="number" step="0.01" name="components[{{ $deduction->id }}]" class="form-control salary-calc deduction" id="component_{{ $deduction->id }}" 
+                               value="{{ old('components.'.$deduction->id, isset($employee) ? ($employee->salaryComponents->find($deduction->id)->pivot->amount ?? 0) : 0) }}">
+                    </div>
+                @empty
+                    <div class="col-12"><p class="text-muted">No deduction components defined. Please add them in <a href="{{ route('salary-components.index') }}">Salary Components</a>.</p></div>
+                @endforelse
+            </div>
+        </div>
+    </div>
+    <div class="row mt-3 bg-light pt-3 rounded">
+        <div class="col-md-6 form-group">
+            <label for="gross_salary">Gross Salary (Auto-Calculated)</label>
+            <input type="text" class="form-control" id="gross_salary" readonly style="font-weight: bold; background-color: #e9ecef;">
+        </div>
+        <div class="col-md-6 form-group">
+            <label for="net_salary">Net Salary (Auto-Calculated)</label>
+            <input type="text" class="form-control" id="net_salary" readonly style="font-weight: bold; background-color: #e9ecef;">
+        </div>
+    </div>
+    
+    <hr><h5 class="mt-4 mb-3">Leaves Details</h5>
+    <div class="row">
+        <div class="col-md-6 form-group">
+            <label for="leave_period_from">Leave Period From</label>
+            <input type="date" name="leave_period_from" class="form-control" id="leave_period_from" value="{{ old('leave_period_from', $employee->leave_period_from ?? '') }}">
+        </div>
+        <div class="col-md-6 form-group">
+            <label for="leave_period_to">Leave Period To</label>
+            <input type="date" name="leave_period_to" class="form-control" id="leave_period_to" value="{{ old('leave_period_to', $employee->leave_period_to ?? '') }}">
+        </div>
     </div>
     <div class="row">
-        <div class="col-md-3 form-group"><label for="conveyance">Conveyance</label><input type="number" step="0.01" name="conveyance" class="form-control salary-component" id="conveyance" value="{{ old('conveyance', $employee->conveyance ?? 0) }}"></div>
-        <div class="col-md-3 form-group"><label for="other_allowance">Other Allowance</label><input type="number" step="0.01" name="other_allowance" class="form-control salary-component" id="other_allowance" value="{{ old('other_allowance', $employee->other_allowance ?? 0) }}"></div>
-        <div class="col-md-6 form-group"><label for="total_salary">Total Salary</label><input type="number" class="form-control" id="total_salary" readonly></div>
+        <div class="col-md-3 form-group">
+            <label for="leaves_annual">Annual Leaves <span class="text-danger">*</span></label>
+            <input type="number" name="leaves_annual" class="form-control leave-calc" id="leaves_annual" value="{{ old('leaves_annual', $employee->leaves_annual ?? 0) }}" required>
+        </div>
+        <div class="col-md-3 form-group">
+            <label for="leaves_sick">Sick Leaves <span class="text-danger">*</span></label>
+            <input type="number" name="leaves_sick" class="form-control leave-calc" id="leaves_sick" value="{{ old('leaves_sick', $employee->leaves_sick ?? 0) }}" required>
+        </div>
+        <div class="col-md-3 form-group">
+            <label for="leaves_casual">Casual Leaves <span class="text-danger">*</span></label>
+            <input type="number" name="leaves_casual" class="form-control leave-calc" id="leaves_casual" value="{{ old('leaves_casual', $employee->leaves_casual ?? 0) }}" required>
+        </div>
+        <div class="col-md-3 form-group">
+            <label for="leaves_other">Other Leaves <span class="text-danger">*</span></label>
+            <input type="number" name="leaves_other" class="form-control leave-calc" id="leaves_other" value="{{ old('leaves_other', $employee->leaves_other ?? 0) }}" required>
+        </div>
     </div>
-
-    <hr><h5 class="mt-4 mb-3">Annual Leaves Allocation</h5>
-    <div class="row">
-        <div class="col-md-6 form-group"><label for="leave_period_from">Leave Period From</label><input type="date" name="leave_period_from" class="form-control" id="leave_period_from" value="{{ old('leave_period_from', $employee->leave_period_from ?? '') }}"> @error('leave_period_from') <div class="text-danger mt-1">{{ $message }}</div> @enderror</div>
-        <div class="col-md-6 form-group"><label for="leave_period_to">Leave Period To</label><input type="date" name="leave_period_to" class="form-control" id="leave_period_to" value="{{ old('leave_period_to', $employee->leave_period_to ?? '') }}"> @error('leave_period_to') <div class="text-danger mt-1">{{ $message }}</div> @enderror</div>
-    </div>
-    <div class="row">
-        <div class="col-md-2 form-group"><label for="leaves_sick">Sick</label><input type="number" name="leaves_sick" class="form-control leave-component" id="leaves_sick" value="{{ old('leaves_sick', $employee->leaves_sick ?? 0) }}"></div>
-        <div class="col-md-2 form-group"><label for="leaves_casual">Casual</label><input type="number" name="leaves_casual" class="form-control leave-component" id="leaves_casual" value="{{ old('leaves_casual', $employee->leaves_casual ?? 0) }}"></div>
-        <div class="col-md-2 form-group"><label for="leaves_annual">Annual</label><input type="number" name="leaves_annual" class="form-control leave-component" id="leaves_annual" value="{{ old('leaves_annual', $employee->leaves_annual ?? 0) }}"></div>
-        <div class="col-md-2 form-group"><label for="leaves_other">Other</label><input type="number" name="leaves_other" class="form-control leave-component" id="leaves_other" value="{{ old('leaves_other', $employee->leaves_other ?? 0) }}"></div>
-        <div class="col-md-4 form-group"><label for="total_leaves">Total Leaves</label><input type="number" class="form-control" id="total_leaves" readonly></div>
+    <div class="row bg-light pt-3 rounded">
+        <div class="col-md-3 form-group">
+            <label for="total_leaves">Total Leaves (Auto-Calculated)</label>
+            <input type="text" class="form-control" id="total_leaves" readonly style="font-weight: bold; background-color: #e9ecef;">
+        </div>
     </div>
     
     <hr><h5 class="mt-4 mb-3">Bank Account Details</h5>
@@ -184,23 +280,6 @@
         $(document).on('click', '.remove-row', function() {
             $(this).closest('.row').remove();
         });
-        
-        const salaryComponents = document.querySelectorAll('.salary-component');
-        const totalSalaryInput = document.getElementById('total_salary');
-        const leaveComponents = document.querySelectorAll('.leave-component');
-        const totalLeavesInput = document.getElementById('total_leaves');
-        function calculateTotal(components) {
-            let total = 0;
-            components.forEach(function (input) { total += parseFloat(input.value) || 0; });
-            return total;
-        }
-        function updateTotals() {
-            totalSalaryInput.value = calculateTotal(salaryComponents).toFixed(2);
-            totalLeavesInput.value = calculateTotal(leaveComponents);
-        }
-        salaryComponents.forEach(input => input.addEventListener('input', updateTotals));
-        leaveComponents.forEach(input => input.addEventListener('input', updateTotals));
-        updateTotals();
 
         function saveNewItem(name, url, selectId, modalId, errorId, inputId) {
             let inputElement = document.getElementById(inputId);
@@ -242,6 +321,48 @@
             let name = document.getElementById('new_department_name').value;
             saveNewItem(name, "{{ route('departments.store') }}", 'department', '#addDepartmentModal', 'department-error', 'new_department_name');
         });
+
+        const salaryFields = document.querySelectorAll('.salary-calc');
+        const grossSalaryInput = document.getElementById('gross_salary');
+        const netSalaryInput = document.getElementById('net_salary');
+
+        function calculateSalary() {
+            let basic = parseFloat(document.getElementById('basic_salary').value) || 0;
+            let totalAllowances = 0;
+            let totalDeductions = 0;
+
+            document.querySelectorAll('.allowance').forEach(function(el) {
+                totalAllowances += parseFloat(el.value) || 0;
+            });
+            
+            document.querySelectorAll('.deduction').forEach(function(el) {
+                totalDeductions += parseFloat(el.value) || 0;
+            });
+
+            let gross = basic + totalAllowances;
+            let net = gross - totalDeductions;
+
+            grossSalaryInput.value = gross.toFixed(2);
+            netSalaryInput.value = net.toFixed(2);
+        }
+
+        salaryFields.forEach(field => field.addEventListener('input', calculateSalary));
+        
+        const leaveFields = document.querySelectorAll('.leave-calc');
+        const totalLeavesInput = document.getElementById('total_leaves');
+
+        function calculateLeaves() {
+            let total = 0;
+            leaveFields.forEach(function(el) {
+                total += parseInt(el.value) || 0;
+            });
+            totalLeavesInput.value = total;
+        }
+
+        leaveFields.forEach(field => field.addEventListener('input', calculateLeaves));
+
+        calculateSalary();
+        calculateLeaves();
     });
 </script>
 @endpush

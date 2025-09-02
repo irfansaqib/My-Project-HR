@@ -65,6 +65,7 @@ class LeaveRequestController extends Controller
         $daysRequested = $startDate->diffInDaysFiltered(fn (Carbon $date) => !$date->isSunday(), $endDate) + 1;
 
         $this->calculateRemainingLeaves($employee);
+        
         $leaveBalanceField = 'leaves_' . $request->leave_type . '_remaining';
         
         if ($daysRequested > $employee->{$leaveBalanceField}) {
@@ -73,7 +74,6 @@ class LeaveRequestController extends Controller
 
         $attachmentPath = $request->hasFile('attachment') ? $request->file('attachment')->store('leave_attachments/' . $employee->business_id, 'public') : null;
 
-        // THE FIX IS HERE: We now explicitly add the business_id when creating the request.
         LeaveRequest::create([
             'business_id' => $employee->business_id,
             'employee_id' => $employee->id,
@@ -104,7 +104,13 @@ class LeaveRequestController extends Controller
 
     public function update(Request $request, LeaveRequest $leaveRequest)
     {
-        // ... validation and update logic ...
+        $request->validate([
+            'leave_type' => 'required|in:annual,sick,casual,other',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'reason' => 'required|string',
+            'attachment' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+        ]);
         $leaveRequest->update($request->all());
         return redirect()->route('leave-requests.index')->with('success', 'Leave application updated successfully.');
     }
@@ -166,7 +172,9 @@ class LeaveRequestController extends Controller
                 ->sum(function ($request) {
                     return Carbon::parse($request->start_date)->diffInDaysFiltered(fn (Carbon $date) => !$date->isSunday(), Carbon::parse($request->end_date)) + 1;
                 });
-            $employee->{'leaves_' . $type . '_remaining'} = ($employee->{'leaves_' . $type} ?? 0) - $approvedDays;
+            
+            $totalAllowed = $employee->{'leaves_' . $type} ?? 0;
+            $employee->{'leaves_' . $type . '_remaining'} = $totalAllowed - $approvedDays;
         }
     }
 }

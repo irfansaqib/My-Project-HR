@@ -27,7 +27,7 @@
 
         <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
             <div>
-                <h3>{{ $business->business_name }}</h3>
+                <h3>{{ $business->legal_name }}</h3>
                 <p class="mb-0 text-muted">{{ $business->address }}</p>
                 <p class="mb-0 text-muted">Phone: {{ $business->phone_number }} | Email: {{ $business->email }}</p>
             </div>
@@ -83,14 +83,12 @@
                 <tr><td class="text-muted">Designation</td><td><strong>{{ $employee->designation }}</strong></td></tr>
                 <tr><td class="text-muted">Department</td><td><strong>{{ $employee->department ?? 'N/A' }}</strong></td></tr>
                 <tr><td class="text-muted">Date of Joining</td><td><strong>{{ $employee->joining_date ? \Carbon\Carbon::parse($employee->joining_date)->format('d M, Y') : 'N/A' }}</strong></td></tr>
-                <tr><td class="text-muted">Probation Period</td><td><strong>{{ $employee->probation_period ? $employee->probation_period . ' months' : 'N/A' }}</strong></td></tr>
-                <tr><td class="text-muted">Job Description</td><td><strong>{{ $employee->job_description ?? 'N/A' }}</strong></td></tr>
             </tbody>
         </table>
 
         <div class="section-title">Qualifications</div>
         <table class="table table-sm table-bordered mt-2">
-            <thead><tr class="table-secondary"><th>Degree / Title</th><th>Institute</th><th>Year</th></tr></thead>
+            <thead class="table-secondary"><tr><th>Degree / Title</th><th>Institute</th><th>Year</th></tr></thead>
             <tbody>
                 @forelse($employee->qualifications as $qual)
                 <tr><td>{{ $qual->degree_title }}</td><td>{{ $qual->institute }}</td><td>{{ $qual->year_of_passing }}</td></tr>
@@ -102,7 +100,7 @@
 
         <div class="section-title">Work Experience</div>
         <table class="table table-sm table-bordered mt-2">
-            <thead><tr class="table-secondary"><th>Company</th><th>Job Title</th><th>Period</th></tr></thead>
+            <thead class="table-secondary"><tr><th>Company</th><th>Job Title</th><th>Period</th></tr></thead>
             <tbody>
                 @forelse($employee->experiences as $exp)
                 <tr><td>{{ $exp->company_name }}</td><td>{{ $exp->job_title }}</td><td>{{ \Carbon\Carbon::parse($exp->from_date)->format('M Y') }} to {{ \Carbon\Carbon::parse($exp->to_date)->format('M Y') }}</td></tr>
@@ -113,25 +111,16 @@
         </table>
         
         <div class="section-title">Salary Details</div>
-        <table class="table table-sm table-borderless mt-2">
-            <tbody>
-                <tr>
-                    <td style="width: 25%;" class="text-muted">Basic Salary</td><td>{{ number_format($employee->basic_salary ?? 0, 2) }}</td>
-                    <td style="width: 25%;" class="text-muted">House Rent</td><td>{{ number_format($employee->house_rent ?? 0, 2) }}</td>
-                </tr>
-                <tr>
-                    <td class="text-muted">Utilities</td><td>{{ number_format($employee->utilities ?? 0, 2) }}</td>
-                    <td class="text-muted">Medical</td><td>{{ number_format($employee->medical ?? 0, 2) }}</td>
-                </tr>
-                <tr>
-                    <td class="text-muted">Conveyance</td><td>{{ number_format($employee->conveyance ?? 0, 2) }}</td>
-                    <td class="text-muted">Other Allowance</td><td>{{ number_format($employee->other_allowance ?? 0, 2) }}</td>
-                </tr>
-                <tr class="border-top">
-                    <td class="font-weight-bold">Total Salary (Gross)</td><td><strong>{{ number_format($employee->total_salary, 2) }}</strong></td>
-                    <td></td><td></td>
-                </tr>
-            </tbody>
+        <table class="table table-sm table-bordered mt-2">
+             <tr class="bg-light"><th style="width:75%">Basic Salary</th><td class="text-right">{{ number_format($employee->basic_salary, 2) }}</td></tr>
+            @foreach($employee->salaryComponents->where('type', 'allowance') as $component)
+                <tr><td>{{ $component->name }}</td><td class="text-right">{{ number_format($component->pivot->amount, 2) }}</td></tr>
+            @endforeach
+            <tr class="font-weight-bold" style="background-color: #e9ecef !important;"><td>Gross Salary</td><td class="text-right">{{ number_format($employee->gross_salary, 2) }}</td></tr>
+            @foreach($employee->salaryComponents->where('type', 'deduction') as $component)
+                <tr><td>{{ $component->name }}</td><td class="text-right text-danger">({{ number_format($component->pivot->amount, 2) }})</td></tr>
+            @endforeach
+            <tr class="font-weight-bold text-white" style="background-color: #343a40 !important;"><td>Net Salary</td><td class="text-right">{{ number_format($employee->net_salary, 2) }}</td></tr>
         </table>
 
         <div class="section-title">Bank Account Details</div>
@@ -148,11 +137,11 @@
             </tbody>
         </table>
         
-        <div class="section-title">Annual Leave Allocation</div>
+        <div class="section-title">Leaves Allocation</div>
         <table class="table table-sm table-borderless mt-2">
              <tbody>
                 <tr>
-                    <td style="width: 25%;" class="text-muted">Leave Period</td>
+                    <td style="width: 25%;" class="text-muted">Leaves Period</td>
                     <td colspan="3"><strong>{{ $employee->leave_period_from ? \Carbon\Carbon::parse($employee->leave_period_from)->format('d M, Y') : 'N/A' }} to {{ $employee->leave_period_to ? \Carbon\Carbon::parse($employee->leave_period_to)->format('d M, Y') : 'N/A' }}</strong></td>
                 </tr>
                 <tr>
@@ -164,7 +153,7 @@
                     <td class="text-muted">Other Leaves</td><td>{{ $employee->leaves_other ?? 0 }}</td>
                 </tr>
                 <tr class="border-top">
-                    <td class="font-weight-bold">Total Leaves</td><td><strong>{{ $employee->total_leaves }}</strong></td>
+                    <td class="font-weight-bold">Total Leaves</td><td><strong>{{ $employee->leaves_annual + $employee->leaves_sick + $employee->leaves_casual + $employee->leaves_other }}</strong></td>
                     <td></td><td></td>
                 </tr>
             </tbody>
@@ -180,7 +169,6 @@
                 <p>Management / HR Signature</p>
             </div>
         </div>
-
     </div>
 </body>
 </html>

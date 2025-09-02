@@ -8,7 +8,7 @@
         body { background-color: #fff; font-size: 11pt; color: #000; line-height: 1.6; }
         .contract-container { max-width: 100%; width: 210mm; margin: auto; padding: 10mm; }
         .header { text-align: center; margin-bottom: 30px; }
-        h1, h2, h3 { margin-top: 20px; margin-bottom: 10px; }
+        h1, h2 { margin-top: 20px; margin-bottom: 10px; }
         h1 { font-size: 18pt; text-transform: uppercase; font-weight: bold; }
         h2 { font-size: 14pt; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 5px; }
         p { text-align: justify; }
@@ -29,10 +29,10 @@
             <h1>Employment Contract</h1>
         </div>
 
-        <p>This Employment Contract (hereinafter referred to as the "Agreement") is made and entered into on this <strong>{{ \Carbon\Carbon::now()->format('jS \d\a\y \o\f F, Y') }}</strong>.</p>
+        <p>This Employment Contract (hereinafter referred to as the "Agreement") is made and entered into on this <strong>{{ \Carbon\Carbon::parse($employee->joining_date)->format('jS \\d\\a\\y \\o\\f F, Y') }}</strong>.</p>
 
         <h2>BETWEEN:</h2>
-        <p><strong>{{ $business->legal_name }}</strong>, a company organized and existing under the laws of Pakistan, with its principal office located at {{ $business->address }} (hereinafter referred to as the "Employer").</p>
+        <p><strong>{{ $business->legal_name }}</strong>, with its principal office located at {{ $business->address }} (hereinafter referred to as the "Employer").</p>
 
         <h2>AND:</h2>
         <p><strong>{{ $employee->name }}</strong>, son/daughter of {{ $employee->father_name ?? '[Father\'s Name]' }}, holding CNIC No. <strong>{{ $employee->cnic }}</strong>, residing at {{ $employee->address ?? '[Employee Address]' }} (hereinafter referred to as the "Employee").</p>
@@ -49,17 +49,17 @@
         <p>The employment shall commence on <strong>{{ \Carbon\Carbon::parse($employee->joining_date)->format('F j, Y') }}</strong>. The first <strong>{{ $employee->probation_period ?? 3 }} months</strong> of employment shall be a probationary period, during which either party may terminate this Agreement with one (1) week's notice.</p>
 
         <h2>3. Remuneration</h2>
-        <p>The Employer shall pay the Employee a total gross monthly salary of <strong>PKR {{ number_format($employee->total_salary, 2) }}/-</strong> (Rupees {{ (new \NumberFormatter('en_US', \NumberFormatter::SPELLOUT))->format($employee->total_salary) }} only), subject to applicable taxes and deductions as required by law.</p>
+        <p>The Employer shall pay the Employee a total gross monthly salary of <strong>PKR {{ number_format((int)$employee->gross_salary, 0) }}/- ({{ \App\Helpers\NumberHelper::numberToWords((int)$employee->gross_salary) }} Rupees)</strong>. The detailed breakup of allowances and applicable deductions will be available in the complete salary structure as approved by the HR Department.</p>
 
-        <h2>4. Working Hours & Leave</h2>
-        <p>The standard working hours shall be as per company policy. The Employee shall be entitled to annual, sick, and casual leaves as per the prevailing labour laws of Pakistan and company policy.</p>
-
+        <h2>4. Leave Entitlement</h2>
+        <p>The Employee shall be entitled to paid leaves during the specified leave period as per the Employer's Business policies.</p>
+        
         <h2>5. Confidentiality</h2>
         <p>The Employee agrees to keep all company information, including but not limited to business operations, client lists, and financial data, strictly confidential during and after the term of employment.</p>
 
         <h2>6. Termination</h2>
         <p>Subsequent to the confirmation of employment, this Agreement may be terminated by either party by giving one (1) month's written notice or payment of one month's salary in lieu of notice.</p>
-
+        
         <h2>7. Governing Law</h2>
         <p>This Agreement shall be governed by and construed in accordance with the laws of the Islamic Republic of Pakistan.</p>
 

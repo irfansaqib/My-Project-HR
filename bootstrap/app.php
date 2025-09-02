@@ -11,19 +11,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // Add your CheckBusinessDetails middleware to the 'web' group.
-        $middleware->web(append: [
-            \App\Http\Middleware\CheckBusinessDetails::class,
-        ]);
-
-        // Register all middleware aliases here.
         $middleware->alias([
-            'tenant.owner' => \App\Http\Middleware\CheckTenantOwnership::class,
-            
-            // === ADD THESE ALIASES FOR THE PERMISSION PACKAGE ===
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+            'check_business_details' => \App\Http\Middleware\CheckBusinessDetails::class,
+            'check_tenant_ownership' => \App\Http\Middleware\CheckTenantOwnership::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

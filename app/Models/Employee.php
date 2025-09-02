@@ -6,74 +6,49 @@ use App\Models\Traits\BelongsToBusiness;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Carbon\Carbon;
 
 class Employee extends Model
 {
     use HasFactory, BelongsToBusiness;
 
-    /**
-     * We are using guarded which means all fields are fillable.
-     * This is simpler for your large forms.
-     */
     protected $guarded = [];
+    protected $with = ['qualifications', 'experiences', 'salaryComponents'];
 
     /**
-     * The relationships that should always be loaded with the employee.
+     * The salary components attached to this employee.
      */
-    protected $with = ['qualifications', 'experiences'];
-
+    public function salaryComponents()
+    {
+        return $this->belongsToMany(SalaryComponent::class, 'employee_salary')->withPivot('amount');
+    }
+    
     /**
-     * Accessor to automatically calculate the total salary.
+     * Accessor for total allowances (excluding basic salary).
      */
-    protected function totalSalary(): Attribute
+    protected function totalAllowances(): Attribute
     {
         return Attribute::make(
-            get: fn () => 
-                ($this->basic_salary ?? 0) + 
-                ($this->house_rent ?? 0) + 
-                ($this->utilities ?? 0) + 
-                ($this->medical ?? 0) + 
-                ($this->conveyance ?? 0) + 
-                ($this->other_allowance ?? 0),
+            get: fn () => $this->salaryComponents->where('type', 'allowance')->sum('pivot.amount')
         );
     }
-
+    
     /**
-     * Accessor to automatically calculate the total leaves.
+     * Accessor for total deductions.
      */
-    protected function totalLeaves(): Attribute
+    protected function totalDeductions(): Attribute
     {
         return Attribute::make(
-            get: fn () => 
-                ($this->leaves_sick ?? 0) + 
-                ($this->leaves_casual ?? 0) + 
-                ($this->leaves_annual ?? 0) + 
-                ($this->leaves_other ?? 0),
+            get: fn () => $this->salaryComponents->where('type', 'deduction')->sum('pivot.amount')
         );
     }
 
     // --- RELATIONSHIPS ---
-    public function qualifications()
-    {
-        return $this->hasMany(Qualification::class);
-    }
+    public function qualifications() { return $this->hasMany(Qualification::class); }
+    public function experiences() { return $this->hasMany(Experience::class); }
+    public function user() { return $this->hasOne(User::class); }
+    public function leaveRequests() { return $this->hasMany(LeaveRequest::class); }
 
-    public function experiences()
-    {
-        return $this->hasMany(Experience::class);
-    }
-
-    public function user()
-    {
-        return $this->hasOne(User::class);
-    }
-
-    /**
-     * Get all of the leave requests for the employee.
-     * THIS IS THE MISSING METHOD THAT FIXES THE ERROR.
-     */
-    public function leaveRequests()
-    {
-        return $this->hasMany(LeaveRequest::class);
-    }
+    // This method is no longer needed as leaves are not stored on the employee table
+    // but calculated in the LeaveRequestController.
 }
