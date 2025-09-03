@@ -24,6 +24,8 @@
                         <td>{{ $rate->effective_from_date->format('d M, Y') }} to {{ $rate->effective_to_date ? $rate->effective_to_date->format('d M, Y') : 'Present' }}</td>
                         <td>{{ count($rate->slabs) }}</td>
                         <td>
+                            {{-- ADDED THE "VIEW" BUTTON --}}
+                            <a href="{{ route('tax-rates.show', $rate) }}" class="btn btn-sm btn-info">View</a>
                             <a href="{{ route('tax-rates.edit', $rate) }}" class="btn btn-sm btn-warning">Edit</a>
                             <form action="{{ route('tax-rates.destroy', $rate) }}" method="POST" onsubmit="return confirm('Are you sure?');" class="d-inline">
                                 @csrf

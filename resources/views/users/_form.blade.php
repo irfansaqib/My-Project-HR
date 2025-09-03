@@ -40,16 +40,31 @@
         @error('role') <div class="text-danger mt-1">{{ $message }}</div> @enderror
     </div>
 
+    {{-- UPDATED PASSWORD FIELDS --}}
     <div class="row">
         <div class="col-md-6 form-group">
             <label for="password">Password</label>
-            <input type="password" name="password" class="form-control" id="password" {{ isset($user) ? '' : 'required' }}>
+            <div class="input-group">
+                <input type="password" name="password" class="form-control" id="password" {{ isset($user) ? '' : 'required' }}>
+                <div class="input-group-append">
+                    <span class="input-group-text" style="cursor: pointer;" onclick="togglePassword('password')">
+                        <i class="fas fa-eye"></i>
+                    </span>
+                </div>
+            </div>
              @if(isset($user)) <small class="form-text text-muted">Leave blank to keep current password.</small> @endif
             @error('password') <div class="text-danger mt-1">{{ $message }}</div> @enderror
         </div>
         <div class="col-md-6 form-group">
             <label for="password_confirmation">Confirm Password</label>
-            <input type="password" name="password_confirmation" class="form-control" id="password_confirmation">
+            <div class="input-group">
+                <input type="password" name="password_confirmation" class="form-control" id="password_confirmation">
+                <div class="input-group-append">
+                    <span class="input-group-text" style="cursor: pointer;" onclick="togglePassword('password_confirmation')">
+                        <i class="fas fa-eye"></i>
+                    </span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -98,6 +113,20 @@
 
 @push('scripts')
 <script>
+    function togglePassword(fieldId) {
+        const field = document.getElementById(fieldId);
+        const icon = field.nextElementSibling.querySelector('i');
+        if (field.type === "password") {
+            field.type = "text";
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            field.type = "password";
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         // --- Logic for auto-filling name/email from employee select ---
         const employeeSelect = document.getElementById('employee_id');
@@ -143,7 +172,6 @@
                 const allCheckboxesInModule = document.querySelectorAll('.permission-checkbox[data-module="' + module + '"]');
                 const selectAllForModule = document.querySelector('.select-all[data-module="' + module + '"]');
                 
-                // If any checkbox in the module is unchecked, uncheck the "Select All"
                 let allChecked = true;
                 allCheckboxesInModule.forEach(function(cb) {
                     if (!cb.checked) {

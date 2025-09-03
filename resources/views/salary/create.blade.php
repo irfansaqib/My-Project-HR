@@ -6,7 +6,8 @@
     <div class="card-header">
         <h3 class="card-title">Generate Salaries for a Month</h3>
     </div>
-    <form action="{{ route('salaries.generate') }}" method="POST">
+    {{-- Corrected route from salaries.generate to salaries.store --}}
+    <form action="{{ route('salaries.store') }}" method="POST">
         @csrf
         <div class="card-body">
             <p class="text-muted">Select the month and year for which you want to generate salary slips for all active employees. This process will calculate salaries, taxes, and deductions based on the current employee records.</p>

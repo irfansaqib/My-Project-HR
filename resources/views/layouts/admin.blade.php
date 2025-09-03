@@ -8,9 +8,13 @@
     <link rel="stylesheet" href="{{ asset('adminlte/plugins/fontawesome-free/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ asset('adminlte/dist/css/adminlte.min.css') }}">
     @vite('resources/css/app.css')
+
+    {{-- THIS LINE IS NEW - It allows pages to add custom CSS --}}
+    @stack('styles')
 </head>
 <body class="hold-transition sidebar-mini">
 <div class="wrapper">
+    {{-- Main Header Navbar --}}
     <nav class="main-header navbar navbar-expand navbar-white navbar-light">
         <ul class="navbar-nav">
             <li class="nav-item">
@@ -19,15 +23,11 @@
         </ul>
         <ul class="navbar-nav ml-auto">
             <li class="nav-item dropdown">
-                <a class="nav-link" data-toggle="dropdown" href="#">
-                    <i class="far fa-user"></i>
-                </a>
+                <a class="nav-link" data-toggle="dropdown" href="#"><i class="far fa-user"></i></a>
                 <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
                     <span class="dropdown-header">{{ Auth::user()->name ?? 'Guest User' }}</span>
                     <div class="dropdown-divider"></div>
-                    <a href="{{ route('profile.edit') }}" class="dropdown-item">
-                        <i class="fas fa-user mr-2"></i> Profile
-                    </a>
+                    <a href="{{ route('profile.edit') }}" class="dropdown-item"><i class="fas fa-user mr-2"></i> Profile</a>
                     <div class="dropdown-divider"></div>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
@@ -39,12 +39,12 @@
                 </div>
             </li>
             <li class="nav-item">
-                <a class="nav-link" data-widget="fullscreen" href="#" role="button">
-                    <i class="fas fa-expand-arrows-alt"></i>
-                </a>
+                <a class="nav-link" data-widget="fullscreen" href="#" role="button"><i class="fas fa-expand-arrows-alt"></i></a>
             </li>
         </ul>
     </nav>
+
+    {{-- Main Sidebar Container --}}
     <aside class="main-sidebar sidebar-dark-primary elevation-4">
         <a href="{{ route('dashboard') }}" class="brand-link">
             <img src="{{ Auth::user()->business && Auth::user()->business->logo_path ? asset('storage/' . Auth::user()->business->logo_path) : asset('adminlte/dist/img/AdminLTELogo.png') }}" alt="Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
@@ -63,14 +63,29 @@
                 <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
                     <li class="nav-item"><a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}"><i class="nav-icon fas fa-tachometer-alt"></i><p>Dashboard</p></a></li>
                     
-                    @if (Auth::user() && Auth::user()->business)
+                    @if (Auth::user()?->business)
                         <li class="nav-item"><a href="{{ route('business.show', Auth::user()->business) }}" class="nav-link {{ request()->routeIs('business.*') ? 'active' : '' }}"><i class="nav-icon fas fa-briefcase"></i><p>Business Profile</p></a></li>
                     @else
                         <li class="nav-item"><a href="{{ route('business.create') }}" class="nav-link {{ request()->routeIs('business.create') ? 'active' : '' }}"><i class="nav-icon fas fa-plus-circle"></i><p>Create Business</p></a></li>
                     @endif
                     
                     <li class="nav-header">ADMINISTRATION</li>
-                    <li class="nav-item"><a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') || request()->routeIs('roles.*') ? 'active' : '' }}"><i class="nav-icon fas fa-users"></i><p>Users & Roles</p></a></li>
+                    <li class="nav-item {{ request()->routeIs(['users.*', 'roles.*']) ? 'menu-open' : '' }}">
+                        <a href="#" class="nav-link">
+                            <i class="nav-icon fas fa-users-cog"></i>
+                            <p>Users & Roles <i class="right fas fa-angle-left"></i></p>
+                        </a>
+                        <ul class="nav nav-treeview">
+                            <li class="nav-item"><a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Users</p></a></li>
+                            <li class="nav-item"><a href="{{ route('roles.index') }}" class="nav-link {{ request()->routeIs('roles.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Roles</p></a></li>
+                        </ul>
+                    </li>
+                     <li class="nav-item">
+                        <a href="{{ route('client-login-credentials.index') }}" class="nav-link {{ request()->routeIs('client-login-credentials.*') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-key"></i>
+                            <p>Client Credentials</p>
+                        </a>
+                    </li>
 
                     <li class="nav-header">HR MANAGEMENT</li>
                     <li class="nav-item {{ request()->routeIs(['employees.*', 'designations.*', 'departments.*']) ? 'menu-open' : '' }}">
@@ -92,18 +107,17 @@
                         <ul class="nav nav-treeview">
                             <li class="nav-item"><a href="{{ route('salary-components.index') }}" class="nav-link {{ request()->routeIs('salary-components.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Salary Components</p></a></li>
                             <li class="nav-item"><a href="{{ route('salaries.index') }}" class="nav-link {{ request()->routeIs('salaries.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Salary Sheets</p></a></li>
-                            {{-- THE FIX IS HERE: Changed route from 'tax-slabs.index' to 'tax-rates.index' --}}
                             <li class="nav-item"><a href="{{ route('tax-rates.index') }}" class="nav-link {{ request()->routeIs('tax-rates.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Tax Rates</p></a></li>
                         </ul>
                     </li>
-                    <li class="nav-item {{ request()->routeIs('leave-requests.*') ? 'menu-open' : '' }}">
+                    <li class="nav-item {{ request()->routeIs('leave-applications.*') ? 'menu-open' : '' }}">
                         <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-calendar-alt"></i>
                             <p>Leave Management<i class="right fas fa-angle-left"></i></p>
                         </a>
                         <ul class="nav nav-treeview">
-                            <li class="nav-item"><a href="{{ route('leave-requests.create') }}" class="nav-link {{ request()->routeIs('leave-requests.create') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Apply for Leave</p></a></li>
-                            <li class="nav-item"><a href="{{ route('leave-requests.index') }}" class="nav-link {{ request()->routeIs('leave-requests.index') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Leave Applications</p></a></li>
+                            <li class="nav-item"><a href="{{ route('leave-applications.create') }}" class="nav-link {{ request()->routeIs('leave-applications.create') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Apply for Leave</p></a></li>
+                            <li class="nav-item"><a href="{{ route('leave-applications.index') }}" class="nav-link {{ request()->routeIs('leave-applications.index') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Leave Applications</p></a></li>
                         </ul>
                     </li>
                 </ul>
@@ -111,38 +125,32 @@
         </div>
     </aside>
 
+    {{-- Main Content --}}
     <div class="content-wrapper">
         <section class="content-header">
             <div class="container-fluid">
                 <div class="row mb-2">
-                    <div class="col-sm-6">
-                        <h1>@yield('title')</h1>
-                    </div>
+                    <div class="col-sm-6"><h1>@yield('title')</h1></div>
                 </div>
             </div>
         </section>
         <div class="content">
             <div class="container-fluid">
-                @if(session('success'))
-                    <div class="alert alert-success">{{ session('success') }}</div>
-                @endif
-                 @if(session('error'))
-                    <div class="alert alert-danger">{{ session('error') }}</div>
-                @endif
+                @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
+                @if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
                 @yield('content')
             </div>
         </div>
     </div>
 
+    {{-- Footer --}}
     <footer class="main-footer">
         <div class="float-right d-none d-sm-inline">Version 1.0</div>
         <strong>Copyright &copy; 2024-2025 <a href="#">Your Company</a>.</strong> All rights reserved.
     </footer>
 </div>
-
 <script src="{{ asset('adminlte/plugins/jquery/jquery.min.js') }}"></script>
 <script src="{{ asset('adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
 <script src="{{ asset('adminlte/dist/js/adminlte.min.js') }}"></script>
 @vite('resources/js/app.js')
 @stack('scripts')

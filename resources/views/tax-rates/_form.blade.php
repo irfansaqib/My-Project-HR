@@ -52,7 +52,7 @@
                         <tr>
                             <td><input type="number" name="slabs[{{$i}}][income_from]" class="form-control" value="{{ $slab['income_from'] }}" required></td>
                             <td>
-                                <input type="number" name="slabs[{{$i}}][income_to]" class="form-control" value="{{ $slab['income_to'] }}">
+                                <input type="number" name="slabs[{{$i}}][income_to]" class="form-control" value="{{ $slab['income_to'] ?? '' }}">
                                 @if ($loop->last)
                                 <small class="form-text text-muted">Keep this field blank for the last slab.</small>
                                 @endif
@@ -100,6 +100,8 @@
 
 <div class="card-footer">
     <button type="submit" class="btn btn-primary">Save Tax Rates</button>
+    {{-- THIS BUTTON HAS BEEN ADDED --}}
+    <a href="{{ route('tax-rates.index') }}" class="btn btn-secondary">Cancel</a>
 </div>
 
 
@@ -110,9 +112,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateLastRowNote() {
         const container = document.getElementById('slabs-container');
-        // Remove all existing notes
         container.querySelectorAll('.form-text').forEach(note => note.remove());
-        // Add the note to the new last row
         const lastRow = container.querySelector('tr:last-child');
         if (lastRow) {
             const incomeToCell = lastRow.querySelector('input[name*="[income_to]"]').parentElement;
@@ -145,7 +145,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Initial check on page load
     updateLastRowNote();
 });
 </script>

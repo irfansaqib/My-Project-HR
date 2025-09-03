@@ -24,8 +24,9 @@
                         <td>{{ $month->year }}</td>
                         <td>{{ $month->payslip_count }}</td>
                         <td>
-                            <a href="{{ route('salaries.show', ['year' => $month->year, 'month' => $month->month]) }}" class="btn btn-sm btn-info">View Sheet</a>
-                            <form action="{{ route('salaries.destroy', ['year' => $month->year, 'month' => $month->month]) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this entire salary sheet?');" class="d-inline">
+                            {{-- Corrected to pass the sheet ID --}}
+                            <a href="{{ route('salaries.show', $month->sheet_id) }}" class="btn btn-sm btn-info">View Sheet</a>
+                            <form action="{{ route('salaries.destroy', $month->sheet_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this entire salary sheet?');" class="d-inline">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="btn btn-sm btn-danger">Delete</button>

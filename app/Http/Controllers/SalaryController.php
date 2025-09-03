@@ -2,13 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Business;
 use App\Models\Employee;
-use App\Models\Payslip;
+use App\Models\SalarySheet;
+use App\Models\SalarySheetItem;
 use App\Services\TaxCalculatorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class SalaryController extends Controller
 {
@@ -21,99 +23,97 @@ class SalaryController extends Controller
 
     public function index()
     {
-        $processedMonths = Payslip::select('year', 'month', DB::raw('count(*) as payslip_count'))
+        $businessId = Auth::user()->business_id;
+        $processedMonths = SalarySheet::where('business_id', $businessId)
+            ->select(
+                DB::raw('YEAR(month) as year'),
+                DB::raw('MONTH(month) as month')
+            )
             ->groupBy('year', 'month')
-            ->orderBy('year', 'desc')
-            ->orderBy('month', 'desc')
+            ->orderBy('year', 'desc')->orderBy('month', 'desc')
             ->get();
+            
+        foreach($processedMonths as $pm) {
+            $sheet = SalarySheet::where('business_id', $businessId)
+                ->whereYear('month', $pm->year)
+                ->whereMonth('month', $pm->month)
+                ->first();
+            
+            if ($sheet) {
+                $pm->sheet_id = $sheet->id;
+                $pm->payslip_count = $sheet->items->count();
+            } else {
+                $pm->sheet_id = 0;
+                $pm->payslip_count = 0;
+            }
+        }
 
-        return view('salaries.index', compact('processedMonths'));
+        return view('salary.index', compact('processedMonths'));
     }
 
     public function create()
     {
-        return view('salaries.create');
+        return view('salary.create');
     }
 
     public function generate(Request $request)
     {
-        $request->validate([
-            'month' => 'required|date_format:Y-m',
-        ]);
+        $request->validate(['month' => 'required|date_format:Y-m']);
+        $businessId = Auth::user()->business_id;
+        $month = Carbon::createFromFormat('Y-m', $request->month)->startOfMonth();
 
-        $date = Carbon::createFromFormat('Y-m', $request->month)->startOfMonth();
-        $year = $date->year;
-        $month = $date->month;
+        $sheet = SalarySheet::updateOrCreate(
+            ['business_id' => $businessId, 'month' => $month->toDateString()],
+            ['status' => 'generated']
+        );
 
-        $existing = Payslip::where('year', $year)->where('month', $month)->exists();
-        if ($existing) {
-            return back()->with('error', "Salaries for {$date->format('F, Y')} have already been generated.");
-        }
-
-        $employees = Employee::where('status', 'active')->get();
-
-        if ($employees->isEmpty()) {
-            return back()->with('error', 'No active employees found to generate salaries for.');
-        }
+        $sheet->items()->delete();
+        
+        $employees = Employee::where('business_id', $businessId)->with('salaryComponents')->get();
 
         foreach ($employees as $employee) {
-            $allowances = $employee->salaryComponents->where('type', 'allowance');
-            $deductions = $employee->salaryComponents->where('type', 'deduction');
+            $incomeTax = $this->taxCalculator->calculate($employee, $month);
+            $netSalary = (float) $employee->gross_salary - $incomeTax;
 
-            $totalAllowances = $allowances->sum('pivot.amount');
-            $totalDeductions = $deductions->sum('pivot.amount');
-            
-            // Pass the employee and the payroll date to the calculator
-            $monthlyTax = $this->taxCalculator->calculate($employee, $date);
-
-            $netSalary = $employee->gross_salary - $totalDeductions - $monthlyTax;
-
-            Payslip::create([
-                'business_id' => $employee->business_id,
+            SalarySheetItem::create([
+                'salary_sheet_id' => $sheet->id,
                 'employee_id' => $employee->id,
-                'year' => $year,
-                'month' => $month,
-                'basic_salary' => $employee->basic_salary,
-                'total_allowances' => $totalAllowances,
-                'total_deductions' => $totalDeductions,
                 'gross_salary' => $employee->gross_salary,
-                'income_tax' => $monthlyTax,
+                'deductions' => 0,
+                'income_tax' => $incomeTax,
                 'net_salary' => $netSalary,
-                'status' => 'generated',
-                'allowances_breakdown' => $allowances->pluck('pivot.amount', 'name'),
-                'deductions_breakdown' => $deductions->pluck('pivot.amount', 'name'),
             ]);
         }
 
-        return redirect()->route('salaries.index')->with('success', "Salaries for {$employees->count()} employees for {$date->format('F, Y')} have been generated successfully.");
+        return redirect()->route('salaries.show', $sheet->id)->with('success', 'Salary Sheet generated successfully.');
+    }
+    
+    public function show(SalarySheet $salarySheet)
+    {
+        $this->authorize('view', $salarySheet);
+        $salarySheet->load('items.employee');
+        $monthName = Carbon::parse($salarySheet->month)->format('F');
+        $year = Carbon::parse($salarySheet->month)->year;
+        $payslips = $salarySheet->items;
+        return view('salary.show', compact('salarySheet', 'monthName', 'year', 'payslips'));
     }
 
-    public function show($year, $month)
+    public function payslip(SalarySheetItem $salarySheetItem)
     {
-        $payslips = Payslip::with('employee')
-            ->where('year', $year)
-            ->where('month', $month)
-            ->get();
+        $this->authorize('view', $salarySheetItem->salarySheet);
+        $payslip = $salarySheetItem;
+        $business = Business::find(Auth::user()->business_id);
         
-        if($payslips->isEmpty()){
-            abort(404);
-        }
-            
-        $monthName = Carbon::createFromDate($year, $month, 1)->format('F');
-
-        return view('salaries.show', compact('payslips', 'year', 'monthName'));
+        $payslip->allowances_breakdown = [];
+        $payslip->deductions_breakdown = [];
+        
+        return view('salary.payslip', compact('payslip', 'business'));
     }
 
-    public function destroy($year, $month)
+    public function destroy(SalarySheet $salarySheet)
     {
-        Payslip::where('year', $year)->where('month', $month)->delete();
-        $monthName = Carbon::createFromDate($year, $month, 1)->format('F');
-        return redirect()->route('salaries.index')->with('success', "Salary sheet for {$monthName}, {$year} has been deleted.");
-    }
-
-    public function showPayslip(Payslip $payslip)
-    {
-        $business = Auth::user()->business;
-        return view('salaries.payslip', compact('payslip', 'business'));
+        $this->authorize('delete', $salarySheet);
+        $salarySheet->delete();
+        return redirect()->route('salaries.index')->with('success', 'Salary Sheet deleted successfully.');
     }
 }

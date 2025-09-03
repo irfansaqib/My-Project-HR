@@ -29,11 +29,13 @@
                         <td>{{ $payslip->employee->name }}</td>
                         <td>{{ $payslip->employee->designation }}</td>
                         <td class="text-right">{{ number_format($payslip->gross_salary, 2) }}</td>
-                        <td class="text-right">{{ number_format($payslip->total_deductions, 2) }}</td>
+                        {{-- The payslip model does not have total_deductions, using the single 'deductions' field --}}
+                        <td class="text-right">{{ number_format($payslip->deductions, 2) }}</td>
                         <td class="text-right">{{ number_format($payslip->income_tax, 2) }}</td>
                         <td class="text-right font-weight-bold">{{ number_format($payslip->net_salary, 2) }}</td>
                         <td class="no-print">
-                            <a href="{{ route('salaries.payslip', $payslip) }}" target="_blank" class="btn btn-sm btn-info">View Payslip</a>
+                            {{-- Corrected the route to use the new salaries.payslip route --}}
+                            <a href="{{ route('salaries.payslip', $payslip->id) }}" target="_blank" class="btn btn-sm btn-info">View Payslip</a>
                         </td>
                     </tr>
                 @empty

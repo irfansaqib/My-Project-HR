@@ -26,7 +26,7 @@
                         <th>Name</th>
                         <th>Email</th>
                         <th>User Type (Role)</th>
-                        <th style="width: 150px">Actions</th>
+                        <th style="width: 200px">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -40,14 +40,18 @@
                             @endforeach
                         </td>
                         <td>
+                            {{-- ADDED THE VIEW BUTTON --}}
+                            @can('user-view')
+                            <a href="{{ route('users.show', $user) }}" class="btn btn-xs btn-info">View</a>
+                            @endcan
                             @can('user-edit')
                             <a href="{{ route('users.edit', $user) }}" class="btn btn-xs btn-warning">Edit</a>
                             @endcan
                             @can('user-delete')
-                            <form method="POST" action="{{ route('users.destroy', $user) }}" style="display:inline;">
+                            <form method="POST" action="{{ route('users.destroy', $user) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this user?')">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="btn btn-xs btn-danger" onclick="return confirm('Are you sure you want to delete this user?')">Delete</button>
+                                <button type="submit" class="btn btn-xs btn-danger">Delete</button>
                             </form>
                             @endcan
                         </td>

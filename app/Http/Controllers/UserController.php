@@ -17,8 +17,8 @@ class UserController extends Controller
 
     public function __construct()
     {
-        // Protect all methods with their corresponding permissions
-        $this->middleware('permission:user-view')->only('index');
+        // Added 'user-view' to the show method
+        $this->middleware('permission:user-view')->only(['index', 'show']);
         $this->middleware('permission:user-create')->only(['create', 'store']);
         $this->middleware('permission:user-edit')->only(['edit', 'update']);
         $this->middleware('permission:user-delete')->only('destroy');
@@ -26,27 +26,17 @@ class UserController extends Controller
 
     public function index()
     {
-        // Get all users except the Owner, and eager load their roles
         $users = User::whereHas('roles', function ($query) {
             $query->where('name', '!=', 'Owner');
         })->with('roles')->paginate(10);
-
         return view('users.index', compact('users'));
     }
 
     public function create()
     {
-        // Get employees who do not already have a user account
         $employees = Employee::whereDoesntHave('user')->get();
-        
-        // Get roles, excluding the "Owner" role which cannot be assigned manually
         $roles = Role::where('name', '!=', 'Owner')->pluck('name', 'name');
-
-        // Get all permissions, grouped by the module name (e.g., 'employee', 'customer')
-        $permissions = Permission::all()->groupBy(function ($permission) {
-            return explode('-', $permission->name)[0];
-        });
-
+        $permissions = Permission::all()->groupBy(fn($p) => explode('-', $p->name)[0]);
         return view('users.create', compact('employees', 'roles', 'permissions'));
     }
 
@@ -71,7 +61,6 @@ class UserController extends Controller
 
         $user->assignRole($request->role);
 
-        // Only assign permissions if the role is 'User' and permissions were sent
         if ($request->role === 'User' && $request->has('permissions')) {
             $user->givePermissionTo($request->permissions);
         }
@@ -79,15 +68,21 @@ class UserController extends Controller
         return redirect()->route('users.index')->with('success', 'User created successfully.');
     }
     
+    /**
+     * ADDED THIS METHOD
+     */
+    public function show(User $user)
+    {
+        $user->load('roles', 'permissions', 'employee');
+        $permissions = $user->permissions->groupBy(fn($p) => explode('-', $p->name)[0]);
+        return view('users.show', compact('user', 'permissions'));
+    }
+
     public function edit(User $user)
     {
-        // Get employees who don't have a user, OR the current employee being edited
         $employees = Employee::whereDoesntHave('user')->orWhere('id', $user->employee_id)->get();
         $roles = Role::where('name', '!=', 'Owner')->pluck('name', 'name');
-        $permissions = Permission::all()->groupBy(function ($permission) {
-            return explode('-', $permission->name)[0];
-        });
-        
+        $permissions = Permission::all()->groupBy(fn($p) => explode('-', $p->name)[0]);
         return view('users.edit', compact('user', 'employees', 'roles', 'permissions'));
     }
 
@@ -109,12 +104,8 @@ class UserController extends Controller
             $user->save();
         }
 
-        // Sync roles first
         $user->syncRoles($request->role);
         
-        // If the new role is 'User', sync their permissions.
-        // Otherwise (if they are now an Admin), remove all specific permissions
-        // because the Admin role gets access to everything automatically.
         if ($request->role === 'User' && $request->has('permissions')) {
             $user->syncPermissions($request->permissions);
         } else {

@@ -2,14 +2,14 @@
 
 namespace App\Models;
 
-use App\Models\Traits\BelongsToBusiness;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class SalaryComponent extends Model
 {
-    use HasFactory, BelongsToBusiness;
-
+    use HasFactory;
+    
     /**
      * The attributes that are mass assignable.
      *
@@ -19,9 +19,18 @@ class SalaryComponent extends Model
         'business_id',
         'name',
         'type',
-        // THE FIX IS HERE: Added the missing fields
         'is_tax_exempt',
         'exemption_type',
         'exemption_value',
     ];
+
+    /**
+     * The employees that have this salary component.
+     */
+    public function employees(): BelongsToMany
+    {
+        return $this->belongsToMany(Employee::class, 'employee_salary_component')
+                    ->withPivot('amount') // Important: allows us to access the specific amount
+                    ->withTimestamps();
+    }
 }
