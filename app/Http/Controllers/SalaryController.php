@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\NumberHelper;
 use App\Models\Business;
 use App\Models\Employee;
+use App\Models\SalaryComponent;
 use App\Models\SalarySheet;
 use App\Models\SalarySheetItem;
 use App\Services\TaxCalculatorService;
@@ -91,22 +93,66 @@ class SalaryController extends Controller
     public function show(SalarySheet $salarySheet)
     {
         $this->authorize('view', $salarySheet);
-        $salarySheet->load('items.employee');
-        $monthName = Carbon::parse($salarySheet->month)->format('F');
-        $year = Carbon::parse($salarySheet->month)->year;
-        $payslips = $salarySheet->items;
-        return view('salary.show', compact('salarySheet', 'monthName', 'year', 'payslips'));
+        $salarySheet->load('items.employee.salaryComponents', 'business');
+
+        $businessId = Auth::user()->business_id;
+        
+        $allowanceHeaders = SalaryComponent::where('business_id', $businessId)->where('type', 'allowance')->pluck('name');
+        $deductionHeaders = SalaryComponent::where('business_id', $businessId)->where('type', 'deduction')->pluck('name');
+
+        foreach ($salarySheet->items as $item) {
+            $item->allowances = $item->employee->salaryComponents
+                ->where('type', 'allowance')
+                ->pluck('pivot.amount', 'name');
+            $item->deductions = $item->employee->salaryComponents
+                ->where('type', 'deduction')
+                ->pluck('pivot.amount', 'name');
+        }
+
+        $monthName = Carbon::parse($salarySheet->month)->format('F, Y');
+        $business = $salarySheet->business;
+
+        return view('salary.show', compact(
+            'salarySheet', 
+            'monthName', 
+            'allowanceHeaders', 
+            'deductionHeaders',
+            'business'
+        ));
     }
 
     public function payslip(SalarySheetItem $salarySheetItem)
     {
         $this->authorize('view', $salarySheetItem->salarySheet);
+        
         $payslip = $salarySheetItem;
         $business = Business::find(Auth::user()->business_id);
+
+        $payslip->load('employee.salaryComponents');
         
-        $payslip->allowances_breakdown = [];
-        $payslip->deductions_breakdown = [];
+        $allowances = [];
+        $deductions = [];
+        foreach ($payslip->employee->salaryComponents as $component) {
+            if ($component->type === 'allowance') {
+                $allowances[$component->name] = $component->pivot->amount;
+            } else {
+                $deductions[$component->name] = $component->pivot->amount;
+            }
+        }
         
+        $payslip->allowances_breakdown = $allowances;
+        $payslip->deductions_breakdown = $deductions;
+        $payslip->total_deductions = array_sum($deductions);
+        
+        $payslip->month = Carbon::parse($payslip->salarySheet->month)->format('F');
+        $payslip->year = Carbon::parse($payslip->salarySheet->month)->year;
+        
+        if (class_exists(NumberHelper::class)) {
+            $payslip->net_salary_in_words = NumberHelper::numberToWords($payslip->net_salary);
+        } else {
+            $payslip->net_salary_in_words = 'Number helper not found';
+        }
+
         return view('salary.payslip', compact('payslip', 'business'));
     }
 

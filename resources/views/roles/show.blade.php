@@ -7,27 +7,35 @@
         <h3 class="card-title">Role Details: <strong>{{ $role->name }}</strong></h3>
         <div class="card-tools">
             <a href="{{ route('roles.index') }}" class="btn btn-secondary">Back to List</a>
-            @can('role-edit')
-                <a href="{{ route('roles.edit', $role) }}" class="btn btn-primary">Edit Role</a>
-            @endcan
+            @if($role->name != 'Admin' && $role->name != 'Owner')
+                @can('role-edit')
+                    <a href="{{ route('roles.edit', $role) }}" class="btn btn-primary">Edit Role</a>
+                @endcan
+            @endif
         </div>
     </div>
     <div class="card-body">
-        <h5 class="mt-4">Assigned Permissions</h5>
-        <div class="row">
-            @forelse($permissions as $module => $permissionGroup)
-                <div class="col-md-4">
-                    <h6>{{ ucfirst(str_replace('-', ' ', $module)) }}</h6>
-                    <ul>
-                        @foreach($permissionGroup as $permission)
-                            <li>{{ ucwords(str_replace(['-view', '-create', '-edit', '-delete'], '', $permission->name)) }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @empty
-                <div class="col-12"><p class="text-muted">No permissions assigned to this role.</p></div>
-            @endforelse
-        </div>
+        @if($role->permissions->isEmpty())
+            <div class="alert alert-info">
+                No permissions have been assigned to this role yet.
+            </div>
+        @else
+            <h5 class="mb-3">Assigned Permissions</h5>
+            <div class="row">
+                @foreach($permissions as $module => $permissionGroup)
+                    @if($permissionGroup->isNotEmpty())
+                    <div class="col-md-4 mb-3">
+                        <h6><strong>{{ ucwords(str_replace('-', ' ', $module)) }}</strong></h6>
+                        <ul class="list-unstyled pl-3">
+                            @foreach($permissionGroup as $permission)
+                                <li><i class="fas fa-check-circle text-success mr-2"></i>{{ ucwords(str_replace('-', ' ', $permission->name)) }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                    @endif
+                @endforeach
+            </div>
+        @endif
     </div>
 </div>
 @endsection

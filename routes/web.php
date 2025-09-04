@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\BusinessController;
-use App\Http\Controllers\ClientLoginCredentialController;
+use App\Http\Controllers\ClientCredentialController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DesignationController;
@@ -31,9 +31,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Business & Profile Routes
-    Route::get('/business', [BusinessController::class, 'edit'])->name('business.edit');
-    Route::put('/business', [BusinessController::class, 'update'])->name('business.update');
-    Route::get('/business/show', [BusinessController::class, 'edit'])->name('business.show');
+    Route::resource('business', BusinessController::class)->except(['index', 'destroy']);
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
@@ -45,7 +43,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('departments', DepartmentController::class);
     Route::resource('designations', DesignationController::class);
     Route::resource('tax-rates', TaxRateController::class);
-    Route::resource('client-login-credentials', ClientLoginCredentialController::class);
+    Route::resource('client-credentials', ClientCredentialController::class);
     Route::resource('leave-types', LeaveTypeController::class);
     Route::resource('leave-applications', LeaveApplicationController::class);
     Route::resource('payrolls', PayrollController::class);

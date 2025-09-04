@@ -10,36 +10,26 @@ class BusinessController extends Controller
 {
     public function __construct()
     {
-        // This will apply authorization to all methods
         $this->authorizeResource(Business::class, 'business');
     }
 
     /**
-     * Display the specified resource.
+     * THIS IS THE NEW METHOD to display the business profile.
      */
     public function show(Business $business)
     {
         return view('business.show', compact('business'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
-        // For 'create', we don't have a business model yet, so we can't authorize on it.
-        // We can check if the user is authorized to 'create' a business in general.
         $this->authorize('create', Business::class);
         return view('business.create');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
         $this->authorize('create', Business::class);
-
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'address' => 'nullable|string',
@@ -61,17 +51,11 @@ class BusinessController extends Controller
         return redirect()->route('dashboard')->with('success', 'Business details saved successfully!');
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(Business $business)
     {
         return view('business.edit', compact('business'));
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, Business $business)
     {
         $validated = $request->validate([
@@ -88,6 +72,6 @@ class BusinessController extends Controller
 
         $business->update($validated);
 
-        return redirect()->route('dashboard')->with('success', 'Business details updated successfully!');
+        return redirect()->route('business.show', $business)->with('success', 'Business details updated successfully!');
     }
 }

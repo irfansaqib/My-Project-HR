@@ -4,13 +4,7 @@ namespace App\Helpers;
 
 class NumberHelper
 {
-    /**
-     * Convert a number to its word representation without relying on the intl extension.
-     *
-     * @param float|int $number
-     * @return string
-     */
-    public static function numberToWords($number): string
+    public static function numberToWords($number)
     {
         $hyphen      = '-';
         $conjunction = ' and ';
@@ -18,53 +12,20 @@ class NumberHelper
         $negative    = 'negative ';
         $decimal     = ' point ';
         $dictionary  = [
-            0                   => 'zero',
-            1                   => 'one',
-            2                   => 'two',
-            3                   => 'three',
-            4                   => 'four',
-            5                   => 'five',
-            6                   => 'six',
-            7                   => 'seven',
-            8                   => 'eight',
-            9                   => 'nine',
-            10                  => 'ten',
-            11                  => 'eleven',
-            12                  => 'twelve',
-            13                  => 'thirteen',
-            14                  => 'fourteen',
-            15                  => 'fifteen',
-            16                  => 'sixteen',
-            17                  => 'seventeen',
-            18                  => 'eighteen',
-            19                  => 'nineteen',
-            20                  => 'twenty',
-            30                  => 'thirty',
-            40                  => 'forty',
-            50                  => 'fifty',
-            60                  => 'sixty',
-            70                  => 'seventy',
-            80                  => 'eighty',
-            90                  => 'ninety',
-            100                 => 'hundred',
-            1000                => 'thousand',
-            1000000             => 'million',
-            1000000000          => 'billion',
-            1000000000000       => 'trillion',
-            1000000000000000    => 'quadrillion',
-            1000000000000000000 => 'quintillion'
+            0                   => 'zero', 1                   => 'one', 2                   => 'two',
+            3                   => 'three', 4                   => 'four', 5                   => 'five',
+            6                   => 'six', 7                   => 'seven', 8                   => 'eight',
+            9                   => 'nine', 10                  => 'ten', 11                  => 'eleven',
+            12                  => 'twelve', 13                  => 'thirteen', 14                  => 'fourteen',
+            15                  => 'fifteen', 16                  => 'sixteen', 17                  => 'seventeen',
+            18                  => 'eighteen', 19                  => 'nineteen', 20                  => 'twenty',
+            30                  => 'thirty', 40                  => 'forty', 50                  => 'fifty',
+            60                  => 'sixty', 70                  => 'seventy', 80                  => 'eighty',
+            90                  => 'ninety', 100                 => 'hundred', 1000                => 'thousand',
+            1000000             => 'million', 1000000000          => 'billion',
         ];
 
         if (!is_numeric($number)) {
-            return false;
-        }
-
-        if (($number >= 0 && (int) $number < 0) || (int) $number < 0 - PHP_INT_MAX) {
-            // overflow
-            trigger_error(
-                'numberToWords only accepts numbers between -' . PHP_INT_MAX . ' and ' . PHP_INT_MAX,
-                E_USER_WARNING
-            );
             return false;
         }
 
@@ -110,11 +71,13 @@ class NumberHelper
                 break;
         }
 
-        if (null !== $fraction && is_numeric($fraction)) {
+        // --- THIS IS THE UPDATED LOGIC ---
+        // It now only adds the decimal part if the value is greater than zero.
+        if (null !== $fraction && is_numeric($fraction) && (int)$fraction > 0) {
             $string .= $decimal;
             $words = [];
-            foreach (str_split((string) $fraction) as $number) {
-                $words[] = $dictionary[$number];
+            foreach (str_split((string) $fraction) as $digit) {
+                $words[] = $dictionary[$digit];
             }
             $string .= implode(' ', $words);
         }
