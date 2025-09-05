@@ -25,32 +25,14 @@ class SalaryController extends Controller
 
     public function index()
     {
+        // --- THIS METHOD IS NOW CORRECTED ---
         $businessId = Auth::user()->business_id;
-        $processedMonths = SalarySheet::where('business_id', $businessId)
-            ->select(
-                DB::raw('YEAR(month) as year'),
-                DB::raw('MONTH(month) as month')
-            )
-            ->groupBy('year', 'month')
-            ->orderBy('year', 'desc')->orderBy('month', 'desc')
-            ->get();
-            
-        foreach($processedMonths as $pm) {
-            $sheet = SalarySheet::where('business_id', $businessId)
-                ->whereYear('month', $pm->year)
-                ->whereMonth('month', $pm->month)
-                ->first();
-            
-            if ($sheet) {
-                $pm->sheet_id = $sheet->id;
-                $pm->payslip_count = $sheet->items->count();
-            } else {
-                $pm->sheet_id = 0;
-                $pm->payslip_count = 0;
-            }
-        }
+        $salarySheets = SalarySheet::where('business_id', $businessId)
+            ->withCount('items') // Count the number of items (payslips)
+            ->orderBy('month', 'desc')
+            ->paginate(10); // Use pagination for better performance
 
-        return view('salary.index', compact('processedMonths'));
+        return view('salary.index', compact('salarySheets'));
     }
 
     public function create()
@@ -64,12 +46,19 @@ class SalaryController extends Controller
         $businessId = Auth::user()->business_id;
         $month = Carbon::createFromFormat('Y-m', $request->month)->startOfMonth();
 
-        $sheet = SalarySheet::updateOrCreate(
-            ['business_id' => $businessId, 'month' => $month->toDateString()],
-            ['status' => 'generated']
-        );
+        $existingSheet = SalarySheet::where('business_id', $businessId)
+                                    ->whereYear('month', $month->year)
+                                    ->whereMonth('month', $month->month)
+                                    ->first();
+        if ($existingSheet) {
+            return redirect()->route('salaries.index')->with('error', 'A salary sheet for ' . $month->format('F, Y') . ' already exists.');
+        }
 
-        $sheet->items()->delete();
+        $sheet = SalarySheet::create([
+            'business_id' => $businessId,
+            'month' => $month->toDateString(),
+            'status' => 'generated'
+        ]);
         
         $employees = Employee::where('business_id', $businessId)->with('salaryComponents')->get();
 
@@ -94,65 +83,38 @@ class SalaryController extends Controller
     {
         $this->authorize('view', $salarySheet);
         $salarySheet->load('items.employee.salaryComponents', 'business');
-
-        $businessId = Auth::user()->business_id;
-        
-        $allowanceHeaders = SalaryComponent::where('business_id', $businessId)->where('type', 'allowance')->pluck('name');
-        $deductionHeaders = SalaryComponent::where('business_id', $businessId)->where('type', 'deduction')->pluck('name');
-
+        $allowanceHeaders = SalaryComponent::where('business_id', auth()->user()->business_id)->where('type', 'allowance')->pluck('name');
+        $deductionHeaders = SalaryComponent::where('business_id', auth()->user()->business_id)->where('type', 'deduction')->pluck('name');
         foreach ($salarySheet->items as $item) {
-            $item->allowances = $item->employee->salaryComponents
-                ->where('type', 'allowance')
-                ->pluck('pivot.amount', 'name');
-            $item->deductions = $item->employee->salaryComponents
-                ->where('type', 'deduction')
-                ->pluck('pivot.amount', 'name');
+            $item->allowances = $item->employee->salaryComponents->where('type', 'allowance')->pluck('pivot.amount', 'name');
+            $item->deductions = $item->employee->salaryComponents->where('type', 'deduction')->pluck('pivot.amount', 'name');
         }
-
         $monthName = Carbon::parse($salarySheet->month)->format('F, Y');
         $business = $salarySheet->business;
-
-        return view('salary.show', compact(
-            'salarySheet', 
-            'monthName', 
-            'allowanceHeaders', 
-            'deductionHeaders',
-            'business'
-        ));
+        return view('salary.show', compact('salarySheet', 'monthName', 'allowanceHeaders', 'deductionHeaders', 'business'));
     }
 
     public function payslip(SalarySheetItem $salarySheetItem)
     {
         $this->authorize('view', $salarySheetItem->salarySheet);
-        
         $payslip = $salarySheetItem;
         $business = Business::find(Auth::user()->business_id);
-
         $payslip->load('employee.salaryComponents');
-        
         $allowances = [];
         $deductions = [];
         foreach ($payslip->employee->salaryComponents as $component) {
-            if ($component->type === 'allowance') {
-                $allowances[$component->name] = $component->pivot->amount;
-            } else {
-                $deductions[$component->name] = $component->pivot->amount;
-            }
+            $component->type === 'allowance' ? $allowances[$component->name] = $component->pivot->amount : $deductions[$component->name] = $component->pivot->amount;
         }
-        
         $payslip->allowances_breakdown = $allowances;
         $payslip->deductions_breakdown = $deductions;
         $payslip->total_deductions = array_sum($deductions);
-        
         $payslip->month = Carbon::parse($payslip->salarySheet->month)->format('F');
         $payslip->year = Carbon::parse($payslip->salarySheet->month)->year;
-        
-        if (class_exists(NumberHelper::class)) {
+        if(class_exists(NumberHelper::class)) {
             $payslip->net_salary_in_words = NumberHelper::numberToWords($payslip->net_salary);
         } else {
-            $payslip->net_salary_in_words = 'Number helper not found';
+            $payslip->net_salary_in_words = "Number Helper not found.";
         }
-
         return view('salary.payslip', compact('payslip', 'business'));
     }
 

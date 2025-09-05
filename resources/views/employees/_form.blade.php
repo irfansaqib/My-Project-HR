@@ -143,7 +143,7 @@
                     <div class="col-md-4 form-group">
                         <label for="component_{{ $allowance->id }}">{{ $allowance->name }}</label>
                         <input type="number" step="0.01" name="components[{{ $allowance->id }}]" class="form-control salary-calc allowance" id="component_{{ $allowance->id }}" 
-                               value="{{ old('components.'.$allowance->id, isset($employee) ? ($employee->salaryComponents->find($allowance->id)->pivot->amount ?? 0) : 0) }}">
+                               value="{{ old('components.'.$allowance->id, isset($employee) && $employee->salaryComponents->find($allowance->id) ? $employee->salaryComponents->find($allowance->id)->pivot->amount : 0) }}">
                     </div>
                 @empty
                     <div class="col-12"><p class="text-muted">No allowance components defined. Please add them in <a href="{{ route('salary-components.index') }}">Salary Components</a>.</p></div>
@@ -159,7 +159,7 @@
                     <div class="col-md-4 form-group">
                         <label for="component_{{ $deduction->id }}">{{ $deduction->name }}</label>
                         <input type="number" step="0.01" name="components[{{ $deduction->id }}]" class="form-control salary-calc deduction" id="component_{{ $deduction->id }}" 
-                               value="{{ old('components.'.$deduction->id, isset($employee) ? ($employee->salaryComponents->find($deduction->id)->pivot->amount ?? 0) : 0) }}">
+                               value="{{ old('components.'.$deduction->id, isset($employee) && $employee->salaryComponents->find($deduction->id) ? $employee->salaryComponents->find($deduction->id)->pivot->amount : 0) }}">
                     </div>
                 @empty
                     <div class="col-12"><p class="text-muted">No deduction components defined. Please add them in <a href="{{ route('salary-components.index') }}">Salary Components</a>.</p></div>
@@ -170,13 +170,51 @@
     <div class="row mt-3 bg-light pt-3 rounded">
         <div class="col-md-6 form-group">
             <label for="gross_salary">Gross Salary (Auto-Calculated)</label>
-            <input type="text" class="form-control" id="gross_salary" readonly style="font-weight: bold; background-color: #e9ecef;">
+            <input type="text" name="gross_salary" class="form-control" id="gross_salary" value="{{ old('gross_salary', $employee->gross_salary ?? '0.00') }}" readonly style="font-weight: bold; background-color: #e9ecef;">
         </div>
         <div class="col-md-6 form-group">
             <label for="net_salary">Net Salary (Auto-Calculated)</label>
-            <input type="text" class="form-control" id="net_salary" readonly style="font-weight: bold; background-color: #e9ecef;">
+            <input type="text" name="net_salary" class="form-control" id="net_salary" value="{{ old('net_salary', $employee->net_salary ?? '0.00') }}" readonly style="font-weight: bold; background-color: #e9ecef;">
         </div>
     </div>
+    
+    <hr><h5 class="mt-4 mb-3">Bank Account Details</h5>
+    <div class="row">
+        <div class="col-md-6 form-group">
+            <label for="bank_account_title">Account Title</label>
+            <input type="text" name="bank_account_title" class="form-control" id="bank_account_title" value="{{ old('bank_account_title', $employee->bank_account_title ?? '') }}">
+        </div>
+        <div class="col-md-6 form-group">
+            <label for="bank_account_number">Account Number</label>
+            <input type="text" name="bank_account_number" class="form-control" id="bank_account_number" value="{{ old('bank_account_number', $employee->bank_account_number ?? '') }}">
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-6 form-group">
+            <label for="bank_name">Bank Name</label>
+            <input type="text" name="bank_name" class="form-control" id="bank_name" value="{{ old('bank_name', $employee->bank_name ?? '') }}">
+        </div>
+        <div class="col-md-6 form-group">
+            <label for="bank_branch">Branch Name & Code</label>
+            <input type="text" name="bank_branch" class="form-control" id="bank_branch" value="{{ old('bank_branch', $employee->bank_branch ?? '') }}">
+        </div>
+    </div>
+    
+    {{-- THIS IS THE NEW SECTION --}}
+    <div class="row">
+        <div class="col-md-12 form-group">
+            <label for="business_bank_account_id">Paying Bank Account (from Business)</label>
+            <select name="business_bank_account_id" id="business_bank_account_id" class="form-control">
+                <option value="">-- Select a Bank Account --</option>
+                @foreach($businessBankAccounts as $account)
+                    <option value="{{ $account->id }}" @if(old('business_bank_account_id', $employee->business_bank_account_id ?? '') == $account->id) selected @endif>
+                        {{ $account->bank_name }} - ({{ $account->account_number }})
+                    </option>
+                @endforeach
+            </select>
+        </div>
+    </div>
+    {{-- END OF NEW SECTION --}}
     
     <hr><h5 class="mt-4 mb-3">Leaves Details</h5>
     <div class="row">
@@ -214,28 +252,6 @@
         </div>
     </div>
     
-    <hr><h5 class="mt-4 mb-3">Bank Account Details</h5>
-    <div class="row">
-        <div class="col-md-6 form-group">
-            <label for="bank_account_title">Account Title</label>
-            <input type="text" name="bank_account_title" class="form-control" id="bank_account_title" value="{{ old('bank_account_title', $employee->bank_account_title ?? '') }}">
-        </div>
-        <div class="col-md-6 form-group">
-            <label for="bank_account_number">Account Number</label>
-            <input type="text" name="bank_account_number" class="form-control" id="bank_account_number" value="{{ old('bank_account_number', $employee->bank_account_number ?? '') }}">
-        </div>
-    </div>
-    <div class="row">
-        <div class="col-md-6 form-group">
-            <label for="bank_name">Bank Name</label>
-            <input type="text" name="bank_name" class="form-control" id="bank_name" value="{{ old('bank_name', $employee->bank_name ?? '') }}">
-        </div>
-        <div class="col-md-6 form-group">
-            <label for="bank_branch">Branch Name & Code</label>
-            <input type="text" name="bank_branch" class="form-control" id="bank_branch" value="{{ old('bank_branch', $employee->bank_branch ?? '') }}">
-        </div>
-    </div>
-    
     <hr><h5 class="mt-4 mb-3">Other Documents</h5>
     <div class="form-group">
         <label for="attachment">Attach Document (PDF, JPG, PNG)</label>
@@ -252,7 +268,40 @@
 
 @push('scripts')
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
+    $(document).ready(function () {
+        
+        // --- PRIORITY: Auto-calculation functions ---
+
+        function calculateSalary() {
+            let basic = parseFloat($('#basic_salary').val()) || 0;
+            let totalAllowances = 0;
+            let totalDeductions = 0;
+            $('.allowance').each(function() { totalAllowances += parseFloat($(this).val()) || 0; });
+            $('.deduction').each(function() { totalDeductions += parseFloat($(this).val()) || 0; });
+            let gross = basic + totalAllowances;
+            let net = gross - totalDeductions;
+            $('#gross_salary').val(gross.toFixed(2));
+            $('#net_salary').val(net.toFixed(2));
+        }
+
+        function calculateLeaves() {
+            let total = 0;
+            $('.leave-calc').each(function() {
+                total += parseInt($(this).val()) || 0;
+            });
+            $('#total_leaves').val(total);
+        }
+
+        // Attach event listeners for calculations
+        $('.salary-calc').on('input', calculateSalary);
+        $('.leave-calc').on('input', calculateLeaves);
+
+        // Run calculations on page load
+        calculateSalary();
+        calculateLeaves();
+
+        // --- Other page scripts ---
+        
         $('#cnic').mask('00000-0000000-0');
         
         $('.custom-file-input').on('change', function(event) {
@@ -260,7 +309,9 @@
             $(this).next('.custom-file-label').addClass("selected").html(fileName);
             if (this.id === 'photo' && event.target.files && event.target.files[0]) {
                 var reader = new FileReader();
-                reader.onload = function(e) { $('#photo-preview').attr('src', e.target.result); }
+                reader.onload = function(e) {
+                    $('#photo-preview').attr('src', e.target.result);
+                }
                 reader.readAsDataURL(event.target.files[0]);
             }
         });
@@ -282,8 +333,8 @@
         });
 
         function saveNewItem(name, url, selectId, modalId, errorId, inputId) {
-            let inputElement = document.getElementById(inputId);
-            let errorDiv = document.getElementById(errorId);
+            let inputElement = $('#' + inputId);
+            let errorDiv = $('#' + errorId);
             fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
@@ -295,74 +346,30 @@
             })
             .then(data => {
                 if (data.success) {
-                    let select = document.getElementById(selectId);
+                    let select = $('#' + selectId);
                     let newItem = data.designation || data.department;
-                    let newOption = new Option(newItem.name, newItem.name, true, true);
-                    select.add(newOption);
+                    select.append(new Option(newItem.name, newItem.name, true, true));
                     $(modalId).modal('hide');
-                    inputElement.value = '';
-                    errorDiv.classList.add('d-none');
+                    inputElement.val('');
+                    errorDiv.addClass('d-none');
                 }
             })
             .catch(errorData => {
                 if (errorData.errors && errorData.errors.name) {
-                    errorDiv.textContent = errorData.errors.name[0];
-                    errorDiv.classList.remove('d-none');
+                    errorDiv.text(errorData.errors.name[0]).removeClass('d-none');
                 }
             });
         }
 
-        document.getElementById('saveDesignationBtn').addEventListener('click', function() {
-            let name = document.getElementById('new_designation_name').value;
+        $('#saveDesignationBtn').on('click', function() {
+            let name = $('#new_designation_name').val();
             saveNewItem(name, "{{ route('designations.store') }}", 'designation', '#addDesignationModal', 'designation-error', 'new_designation_name');
         });
 
-        document.getElementById('saveDepartmentBtn').addEventListener('click', function() {
-            let name = document.getElementById('new_department_name').value;
+        $('#saveDepartmentBtn').on('click', function() {
+            let name = $('#new_department_name').val();
             saveNewItem(name, "{{ route('departments.store') }}", 'department', '#addDepartmentModal', 'department-error', 'new_department_name');
         });
-
-        const salaryFields = document.querySelectorAll('.salary-calc');
-        const grossSalaryInput = document.getElementById('gross_salary');
-        const netSalaryInput = document.getElementById('net_salary');
-
-        function calculateSalary() {
-            let basic = parseFloat(document.getElementById('basic_salary').value) || 0;
-            let totalAllowances = 0;
-            let totalDeductions = 0;
-
-            document.querySelectorAll('.allowance').forEach(function(el) {
-                totalAllowances += parseFloat(el.value) || 0;
-            });
-            
-            document.querySelectorAll('.deduction').forEach(function(el) {
-                totalDeductions += parseFloat(el.value) || 0;
-            });
-
-            let gross = basic + totalAllowances;
-            let net = gross - totalDeductions;
-
-            grossSalaryInput.value = gross.toFixed(2);
-            netSalaryInput.value = net.toFixed(2);
-        }
-
-        salaryFields.forEach(field => field.addEventListener('input', calculateSalary));
-        
-        const leaveFields = document.querySelectorAll('.leave-calc');
-        const totalLeavesInput = document.getElementById('total_leaves');
-
-        function calculateLeaves() {
-            let total = 0;
-            leaveFields.forEach(function(el) {
-                total += parseInt(el.value) || 0;
-            });
-            totalLeavesInput.value = total;
-        }
-
-        leaveFields.forEach(field => field.addEventListener('input', calculateLeaves));
-
-        calculateSalary();
-        calculateLeaves();
     });
 </script>
 @endpush

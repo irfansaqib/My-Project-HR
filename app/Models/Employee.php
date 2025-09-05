@@ -47,4 +47,9 @@ class Employee extends Model
     {
         return $this->hasMany(Experience::class);
     }
+
+    public function payingBankAccount()
+    {
+    return $this->belongsTo(BusinessBankAccount::class, 'business_bank_account_id');
+    }
 }

@@ -5,37 +5,42 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Business extends Model
 {
     use HasFactory;
 
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
     protected $fillable = [
-        'user_id', // This is the owner's ID
+        'name',
         'legal_name',
-        'business_name',
-        'business_type',
-        'ntn_number',
-        'registration_number',
         'address',
         'phone_number',
         'email',
         'logo_path',
+        'registration_number',
+        'ntn_number',
+        'business_type',
     ];
 
-    public function owner(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'user_id');
-    }
-
+    /**
+     * Get the users associated with the business.
+     */
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
     }
 
-    public function customers(): HasMany
+    /**
+     * THIS IS THE NEW METHOD
+     * Get the bank accounts for the business.
+     */
+    public function bankAccounts(): HasMany
     {
-        return $this->hasMany(Customer::class);
+        return $this->hasMany(BusinessBankAccount::class);
     }
 }

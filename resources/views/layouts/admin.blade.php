@@ -12,7 +12,6 @@
 </head>
 <body class="hold-transition sidebar-mini">
 <div class="wrapper">
-    {{-- Main Header Navbar --}}
     <nav class="main-header navbar navbar-expand navbar-white navbar-light">
         <ul class="navbar-nav">
             <li class="nav-item">
@@ -42,7 +41,6 @@
         </ul>
     </nav>
 
-    {{-- Main Sidebar Container --}}
     <aside class="main-sidebar sidebar-dark-primary elevation-4">
         <a href="{{ route('dashboard') }}" class="brand-link">
             <img src="{{ Auth::user()->business && Auth::user()->business->logo_path ? asset('storage/' . Auth::user()->business->logo_path) : asset('adminlte/dist/img/AdminLTELogo.png') }}" alt="Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
@@ -86,8 +84,6 @@
                         </ul>
                     </li>
                     @endcanany
-                    
-                    {{-- THIS LINK IS NOW CORRECTED --}}
                     @can('client-credential-view')
                      <li class="nav-item">
                         <a href="{{ route('client-credentials.index') }}" class="nav-link {{ request()->routeIs('client-credentials.*') ? 'active' : '' }}">
@@ -118,7 +114,7 @@
                     </li>
                     @endcanany
 
-                    @canany(['salary-component-view', 'salary-sheet-view', 'tax-rate-view'])
+                    @canany(['salary-component-view', 'salary-sheet-view', 'tax-rate-view', 'payroll-view'])
                     <li class="nav-item {{ request()->routeIs(['salary-components.*', 'salaries.*', 'tax-rates.*', 'payrolls.*']) ? 'menu-open' : '' }}">
                         <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-file-invoice-dollar"></i>
@@ -165,7 +161,6 @@
         </div>
     </aside>
 
-    {{-- Main Content & Footer --}}
     <div class="content-wrapper">
         <section class="content-header">
             <div class="container-fluid"><div class="row mb-2"><div class="col-sm-6"><h1>@yield('title')</h1></div></div></div>
@@ -178,6 +173,7 @@
             </div>
         </div>
     </div>
+    
     <footer class="main-footer">
         <div class="float-right d-none d-sm-inline">Version 1.0</div>
         <strong>Copyright &copy; 2024-2025 <a href="#">Your Company</a>.</strong> All rights reserved.

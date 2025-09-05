@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers; // CORRECTED: Replaced hyphen with backslash
+namespace App\Http\Controllers;
 
 use App\Models\Business;
 use App\Models\Employee;
@@ -9,6 +9,7 @@ use App\Models\Designation;
 use App\Models\Qualification;
 use App\Models\Experience;
 use App\Models\SalaryComponent;
+use App\Models\BusinessBankAccount;
 use App\Services\TaxCalculatorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,13 +29,14 @@ class EmployeeController extends Controller
         $designations = Designation::orderBy('name')->get();
         $allowances = SalaryComponent::where('type', 'allowance')->orderBy('name')->get();
         $deductions = SalaryComponent::where('type', 'deduction')->orderBy('name')->get();
-        return view('employees.create', compact('departments', 'designations', 'allowances', 'deductions'));
+        $businessBankAccounts = BusinessBankAccount::where('business_id', Auth::user()->business_id)->get();
+        return view('employees.create', compact('departments', 'designations', 'allowances', 'deductions', 'businessBankAccounts'));
     }
 
     public function store(Request $request)
     {
-        // Validation can be expanded based on your form fields
-        $request->validate(['name' => 'required|string|max:255']);
+        // Add all necessary validation rules for creation
+        $request->validate(['name' => 'required|string|max:255', 'email' => 'required|email|unique:employees,email']);
 
         DB::transaction(function () use ($request) {
             $department = Department::firstOrCreate(['name' => $request->department, 'business_id' => auth()->user()->business_id]);
@@ -56,9 +58,15 @@ class EmployeeController extends Controller
     public function show(Employee $employee)
     {
         $employee->load('qualifications', 'experiences', 'salaryComponents');
+
+        // --- THIS IS THE NEW LOGIC ---
+        // 1. Resolve the tax calculator service from the container.
         $taxCalculator = resolve(TaxCalculatorService::class);
+        // 2. Calculate the estimated monthly tax for this employee.
         $monthlyTax = $taxCalculator->calculate($employee, now());
+        // --- END OF NEW LOGIC ---
         
+        // 3. Pass the employee and the calculated tax to the view.
         return view('employees.show', compact('employee', 'monthlyTax'));
     }
 
@@ -68,14 +76,15 @@ class EmployeeController extends Controller
         $designations = Designation::orderBy('name')->get();
         $allowances = SalaryComponent::where('type', 'allowance')->get();
         $deductions = SalaryComponent::where('type', 'deduction')->get();
+        $businessBankAccounts = BusinessBankAccount::where('business_id', Auth::user()->business_id)->get();
         
-        return view('employees.edit', compact('employee', 'departments', 'designations', 'allowances', 'deductions'));
+        return view('employees.edit', compact('employee', 'departments', 'designations', 'allowances', 'deductions', 'businessBankAccounts'));
     }
 
     public function update(Request $request, Employee $employee)
     {
-        // Validation can be expanded based on your form fields
-        $request->validate(['name' => 'required|string|max:255']);
+        // Add all necessary validation rules for update
+        $request->validate(['name' => 'required|string|max:255', 'email' => 'required|email|unique:employees,email,'.$employee->id]);
 
         DB::transaction(function () use ($request, $employee) {
             $department = Department::firstOrCreate(['name' => $request->department, 'business_id' => auth()->user()->business_id]);
@@ -101,6 +110,7 @@ class EmployeeController extends Controller
 
     protected function updateRelated(Request $request, Employee $employee)
     {
+        // Handle salary components with amounts
         $componentsToSync = [];
         if ($request->has('components')) {
             foreach ($request->components as $id => $amount) {
@@ -111,11 +121,41 @@ class EmployeeController extends Controller
         }
         $employee->salaryComponents()->sync($componentsToSync);
         
-        if ($request->has('qualifications')) { /* ... logic for qualifications ... */ }
-        if ($request->has('experiences')) { /* ... logic for experiences ... */ }
+        // Handle qualifications
+        if ($request->has('qualifications')) {
+             $existingQualIds = $employee->qualifications->pluck('id')->all();
+            $newQualIds = [];
+            foreach ($request->qualifications as $qualData) {
+                if (isset($qualData['id']) && in_array($qualData['id'], $existingQualIds)) {
+                    $qual = Qualification::find($qualData['id']);
+                    if ($qual) $qual->update($qualData);
+                    $newQualIds[] = $qualData['id'];
+                } else {
+                    $newQual = $employee->qualifications()->create($qualData);
+                    $newQualIds[] = $newQual->id;
+                }
+            }
+            Qualification::destroy(array_diff($existingQualIds, $newQualIds));
+        }
+
+        // Handle experiences
+        if ($request->has('experiences')) {
+            $existingExpIds = $employee->experiences->pluck('id')->all();
+            $newExpIds = [];
+            foreach ($request->experiences as $expData) {
+                if (isset($expData['id']) && in_array($expData['id'], $existingExpIds)) {
+                    $exp = Experience::find($expData['id']);
+                    if ($exp) $exp->update($expData);
+                    $newExpIds[] = $expData['id'];
+                } else {
+                    $newExp = $employee->experiences()->create($expData);
+                    $newExpIds[] = $newExp->id;
+                }
+            }
+            Experience::destroy(array_diff($existingExpIds, $newExpIds));
+        }
     }
 
-    // --- ADDED MISSING METHODS ---
     public function print(Employee $employee)
     {
         $business = Business::find(Auth::user()->business_id);

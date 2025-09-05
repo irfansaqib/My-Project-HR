@@ -8,38 +8,45 @@
         <a href="{{ route('salaries.create') }}" class="btn btn-primary float-right">Generate New Sheet</a>
     </div>
     <div class="card-body">
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>Month</th>
-                    <th>Year</th>
-                    <th>Payslips Generated</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($processedMonths as $month)
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead>
                     <tr>
-                        <td>{{ \Carbon\Carbon::create()->month($month->month)->format('F') }}</td>
-                        <td>{{ $month->year }}</td>
-                        <td>{{ $month->payslip_count }}</td>
-                        <td>
-                            {{-- Corrected to pass the sheet ID --}}
-                            <a href="{{ route('salaries.show', $month->sheet_id) }}" class="btn btn-sm btn-info">View Sheet</a>
-                            <form action="{{ route('salaries.destroy', $month->sheet_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this entire salary sheet?');" class="d-inline">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                            </form>
-                        </td>
+                        <th>Month</th>
+                        <th>Payslips Generated</th>
+                        <th>Actions</th>
                     </tr>
-                @empty
-                    <tr>
-                        <td colspan="4" class="text-center">No salary sheets have been generated yet.</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {{-- THIS SECTION IS NOW CORRECTED --}}
+                    @forelse ($salarySheets as $sheet)
+                        <tr>
+                            <td>{{ \Carbon\Carbon::parse($sheet->month)->format('F, Y') }}</td>
+                            <td>{{ $sheet->items_count }}</td>
+                            <td>
+                                <a href="{{ route('salaries.show', $sheet->id) }}" class="btn btn-sm btn-info">View Sheet</a>
+                                <form action="{{ route('salaries.destroy', $sheet->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this entire salary sheet?');" class="d-inline">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="3" class="text-center">No salary sheets have been generated yet.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        
+        {{-- Add pagination links --}}
+        @if($salarySheets->hasPages())
+            <div class="card-footer clearfix">
+                {{ $salarySheets->links() }}
+            </div>
+        @endif
     </div>
 </div>
 @endsection
