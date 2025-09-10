@@ -1,116 +1,100 @@
 @extends('layouts.admin')
-@section('title', "Salary Sheet for {$monthName}")
-
-@push('styles')
-<style>
-    .table-responsive { overflow-x: auto; }
-    .table th, .table td { white-space: nowrap; padding: 0.5rem; }
-    .table thead th { vertical-align: middle; text-align: center; background-color: #e9ecef; }
-    .table .employee-info { min-width: 180px; }
-    .amount-col { text-align: right; }
-    .header-logo { max-height: 60px; }
-    /* THIS IS THE NEW STYLE FOR THE HEADER FONT SIZE */
-    .sheet-header h3 { font-size: 1.75rem !important; font-weight: 600; }
-    .sheet-header p { font-size: 1.1rem !important; }
-
-    @media print {
-        @page { size: landscape; }
-        .no-print { display: none !important; }
-        body { font-size: 9px; }
-        .card { box-shadow: none !important; border: none !important; }
-        .table th { background-color: #e9ecef !important; -webkit-print-color-adjust: exact; }
-    }
-</style>
-@endpush
+@section('title', 'Salary Sheet Details')
 
 @section('content')
 <div class="card">
-    <div class="card-header no-print">
-        <h3 class="card-title">Salary Sheet for {{ $monthName }}</h3>
-        <div class="card-tools">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <h3 class="card-title">Salary Sheet for {{ $monthName }}</h3>
+        </div>
+        <div>
             <a href="{{ route('salaries.index') }}" class="btn btn-secondary">Back to List</a>
-            <button onclick="window.print()" class="btn btn-primary"><i class="fas fa-print"></i> Print Sheet</button>
+            <a href="{{ route('salaries.print', $salarySheet->id) }}" target="_blank" class="btn btn-warning"><i class="fas fa-print"></i> Print Sheet</a>
+            <a href="{{ route('salaries.payslips.print-all', $salarySheet->id) }}" target="_blank" class="btn btn-info"><i class="fas fa-print"></i> Print All Payslips</a>
+            
+            <form action="{{ route('salaries.payslips.send-all', $salarySheet->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to email payslips to all employees on this sheet?');">
+                @csrf
+                <button type="submit" class="btn btn-success"><i class="fas fa-envelope"></i> Email All Payslips</button>
+            </form>
         </div>
     </div>
     <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 sheet-header">
-            <div style="flex: 1;">
-                @if($business->logo_path)
-                    <img src="{{ asset('storage/' . $business->logo_path) }}" alt="Business Logo" class="header-logo">
-                @endif
-            </div>
-            <div class="text-center" style="flex: 2;">
-                <h3 class="mb-0">{{ $business->legal_name ?? $business->name ?? 'Your Company' }}</h3>
-                <p class="mb-0">Salary Sheet for the Month of {{ $monthName }}</p>
-            </div>
-            <div style="flex: 1;">
-                {{-- This is an empty spacer to ensure the middle div is perfectly centered --}}
-            </div>
-        </div>
-
+         @if(session('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
+        @if(session('error'))
+            <div class="alert alert-danger">{{ session('error') }}</div>
+        @endif
         <div class="table-responsive">
-            <table class="table table-bordered table-sm">
+            <table class="table table-bordered table-striped table-sm" style="font-size: 0.9rem;">
                 <thead>
                     <tr>
-                        <th rowspan="2">Sr. No.</th>
-                        <th rowspan="2" class="employee-info">Employee Name</th>
-                        <th rowspan="2">CNIC No.</th>
-                        <th rowspan="2">Designation</th>
-                        <th rowspan="2">Basic Salary</th>
-                        <th colspan="{{ $allowanceHeaders->count() }}">Allowances</th>
-                        <th rowspan="2">Gross Salary</th>
-                        <th colspan="{{ $deductionHeaders->count() + 1 }}">Deductions</th>
-                        <th rowspan="2">Net Salary</th>
-                        <th rowspan="2">Bank Account</th>
-                        <th rowspan="2">Signature</th>
-                        {{-- ADDED THIS HEADER --}}
-                        <th rowspan="2" class="no-print">Actions</th>
+                        <th rowspan="2" class="text-center">Sr.</th>
+                        <th rowspan="2" class="text-center">Employee</th>
+                        <th rowspan="2" class="text-center">Designation</th>
+                        <th rowspan="2" class="text-center">Basic Salary</th>
+                        @if($allowanceHeaders->count() > 0)
+                            <th colspan="{{ $allowanceHeaders->count() }}" class="text-center">Allowances</th>
+                        @endif
+                        <th rowspan="2" class="text-center">Gross Salary</th>
+                        @if($deductionHeaders->count() > 0 || true)
+                            <th colspan="{{ $deductionHeaders->count() + 1 }}" class="text-center">Deductions</th>
+                        @endif
+                        <th rowspan="2" class="text-center">Net Salary</th>
+                        <th rowspan="2" class="text-center">Actions</th>
                     </tr>
                     <tr>
                         @foreach($allowanceHeaders as $header)
-                            <th>{{ $header }}</th>
+                            <th class="text-center">{{ $header }}</th>
                         @endforeach
-
-                        <th>Tax</th>
                         @foreach($deductionHeaders as $header)
-                            <th>{{ $header }}</th>
+                            <th class="text-center">{{ $header }}</th>
                         @endforeach
+                        <th class="text-center">Income Tax</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse ($salarySheet->items as $item)
+                    @forelse ($salarySheet->items as $index => $item)
                         <tr>
-                            <td class="text-center">{{ $loop->iteration }}</td>
-                            <td class="employee-info">{{ $item->employee->name }}</td>
-                            <td>{{ $item->employee->cnic }}</td>
-                            <td>{{ $item->employee->designation->name ?? '' }}</td>
-                            <td class="amount-col">{{ number_format($item->employee->basic_salary, 2) }}</td>
-                            
+                            <td class="text-center">{{ $index + 1 }}</td>
+                            <td>{{ $item->employee->employee_number }} | {{ $item->employee->name }}</td>
+                            <td>{{ $item->employee->designation }}</td>
+                            <td class="text-right">{{ number_format($item->employee->basic_salary, 0) }}</td>
                             @foreach($allowanceHeaders as $header)
-                                <td class="amount-col">{{ number_format($item->allowances[$header] ?? 0, 2) }}</td>
+                                <td class="text-right">{{ number_format($item->allowances_breakdown[$header] ?? 0, 0) }}</td>
                             @endforeach
-
-                            <td class="amount-col font-weight-bold">{{ number_format($item->gross_salary, 2) }}</td>
-                            
-                            <td class="amount-col">{{ number_format($item->income_tax, 2) }}</td>
+                            <td class="text-right">{{ number_format($item->gross_salary, 0) }}</td>
                             @foreach($deductionHeaders as $header)
-                                <td class="amount-col">{{ number_format($item->deductions[$header] ?? 0, 2) }}</td>
+                                <td class="text-right">{{ number_format($item->deductions_breakdown[$header] ?? 0, 0) }}</td>
                             @endforeach
-
-                            <td class="amount-col font-weight-bold">{{ number_format($item->net_salary, 2) }}</td>
-                            <td>{{ $item->employee->bank_account_number }}</td>
-                            <td></td>
-                            {{-- ADDED THIS CELL WITH THE PAYSLIP LINK --}}
-                            <td class="no-print">
-                                <a href="{{ route('salaries.payslip', $item->id) }}" class="btn btn-sm btn-info" target="_blank">View Payslip</a>
+                             <td class="text-right">{{ number_format($item->income_tax, 0) }}</td>
+                            <td class="text-right font-weight-bold">{{ number_format($item->net_salary, 0) }}</td>
+                            <td class="text-center">
+                                <a href="{{ route('salaries.payslip', $item->id) }}" class="btn btn-xs btn-info" target="_blank">View Payslip</a>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ 11 + $allowanceHeaders->count() + $deductionHeaders->count() }}" class="text-center">No employees found for this salary sheet.</td>
+                            <td colspan="{{ 6 + $allowanceHeaders->count() + $deductionHeaders->count() }}" class="text-center">No employee records found.</td>
                         </tr>
                     @endforelse
                 </tbody>
+                 <tfoot>
+                    <tr>
+                        <td colspan="3" class="font-weight-bold">Total</td>
+                        <td class="text-right font-weight-bold">{{ number_format($salarySheet->items->sum('employee.basic_salary'), 0) }}</td>
+                        @foreach($allowanceHeaders as $header)
+                            <td class="text-right font-weight-bold">{{ number_format($salarySheet->items->sum(function($item) use ($header) { return $item->allowances_breakdown[$header] ?? 0; }), 0) }}</td>
+                        @endforeach
+                        <td class="text-right font-weight-bold">{{ number_format($salarySheet->items->sum('gross_salary'), 0) }}</td>
+                        @foreach($deductionHeaders as $header)
+                             <td class="text-right font-weight-bold">{{ number_format($salarySheet->items->sum(function($item) use ($header) { return $item->deductions_breakdown[$header] ?? 0; }), 0) }}</td>
+                        @endforeach
+                        <td class="text-right font-weight-bold">{{ number_format($salarySheet->items->sum('income_tax'), 0) }}</td>
+                        <td class="text-right font-weight-bold">{{ number_format($salarySheet->items->sum('net_salary'), 0) }}</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
     </div>

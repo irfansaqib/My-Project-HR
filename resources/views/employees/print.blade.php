@@ -111,6 +111,7 @@
         </table>
         
         <div class="section-title">Salary Details</div>
+        {{-- ** THIS TABLE HAS BEEN UPDATED ** --}}
         <table class="table table-sm table-bordered mt-2">
              <tr class="bg-light"><th style="width:75%">Basic Salary</th><td class="text-right">{{ number_format($employee->basic_salary, 2) }}</td></tr>
             @foreach($employee->salaryComponents->where('type', 'allowance') as $component)
@@ -120,10 +121,17 @@
             @foreach($employee->salaryComponents->where('type', 'deduction') as $component)
                 <tr><td>{{ $component->name }}</td><td class="text-right text-danger">({{ number_format($component->pivot->amount, 2) }})</td></tr>
             @endforeach
-            <tr class="font-weight-bold text-white" style="background-color: #343a40 !important;"><td>Net Salary</td><td class="text-right">{{ number_format($employee->net_salary, 2) }}</td></tr>
+            <tr>
+                <td>Income Tax</td>
+                <td class="text-right text-danger">({{ number_format($monthlyTax, 2) }})</td>
+            </tr>
+            <tr class="font-weight-bold text-white" style="background-color: #343a40 !important;">
+                <td>Net Salary</td>
+                <td class="text-right">{{ number_format($employee->net_salary - $monthlyTax, 2) }}</td>
+            </tr>
         </table>
 
-        <div class="section-title">Bank Account Details</div>
+        <div class="section-title">Bank Account Details (Personal)</div>
         <table class="table table-sm table-borderless mt-2">
             <tbody>
                 <tr>
@@ -137,6 +145,20 @@
             </tbody>
         </table>
         
+        <div class="section-title">Paying Bank Account (from Business)</div>
+        <table class="table table-sm table-borderless mt-2">
+            <tbody>
+                <tr>
+                    <td style="width: 25%;" class="text-muted">Bank Name</td>
+                    <td><strong>{{ $employee->payingBankAccount->bank_name ?? 'N/A' }}</strong></td>
+                </tr>
+                <tr>
+                    <td class="text-muted">Account Number</td>
+                    <td><strong>{{ $employee->payingBankAccount->account_number ?? 'N/A' }}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+        
         <div class="section-title">Leaves Allocation</div>
         <table class="table table-sm table-borderless mt-2">
              <tbody>
@@ -144,17 +166,23 @@
                     <td style="width: 25%;" class="text-muted">Leaves Period</td>
                     <td colspan="3"><strong>{{ $employee->leave_period_from ? \Carbon\Carbon::parse($employee->leave_period_from)->format('d M, Y') : 'N/A' }} to {{ $employee->leave_period_to ? \Carbon\Carbon::parse($employee->leave_period_to)->format('d M, Y') : 'N/A' }}</strong></td>
                 </tr>
-                <tr>
-                    <td class="text-muted">Annual Leaves</td><td>{{ $employee->leaves_annual ?? 0 }}</td>
-                    <td class="text-muted">Sick Leaves</td><td>{{ $employee->leaves_sick ?? 0 }}</td>
-                </tr>
-                <tr>
-                    <td class="text-muted">Casual Leaves</td><td>{{ $employee->leaves_casual ?? 0 }}</td>
-                    <td class="text-muted">Other Leaves</td><td>{{ $employee->leaves_other ?? 0 }}</td>
-                </tr>
+                @forelse($employee->leaveTypes as $leaveType)
+                    <tr>
+                        <td style="width: 25%;" class="text-muted">{{ $leaveType->name }}</td>
+                        <td><strong>{{ $leaveType->pivot->days_allotted }}</strong></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="4" class="text-muted">No leave types have been assigned.</td>
+                    </tr>
+                @endforelse
                 <tr class="border-top">
-                    <td class="font-weight-bold">Total Leaves</td><td><strong>{{ $employee->leaves_annual + $employee->leaves_sick + $employee->leaves_casual + $employee->leaves_other }}</strong></td>
-                    <td></td><td></td>
+                    <td class="font-weight-bold">Total Leaves</td>
+                    <td><strong>{{ $employee->leaveTypes->sum('pivot.days_allotted') }}</strong></td>
+                    <td></td>
+                    <td></td>
                 </tr>
             </tbody>
         </table>

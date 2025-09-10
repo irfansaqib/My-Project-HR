@@ -4,12 +4,12 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\BusinessController;
 use App\Http\Controllers\BusinessBankAccountController;
-use App\Http\Controllers\ClientCredentialController;
+use App\Http\Controllers\ClientLoginCredentialController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DesignationController;
 use App\Http\Controllers\EmployeeController;
-use App\Http\Controllers\LeaveRequestController;
+use App\Http\Controllers\LeaveApplicationController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\ProfileController;
@@ -46,7 +46,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('departments', DepartmentController::class);
     Route::resource('designations', DesignationController::class);
     Route::resource('tax-rates', TaxRateController::class);
-    Route::resource('client-credentials', ClientCredentialController::class);
+    Route::resource('client-credentials', ClientLoginCredentialController::class);
     Route::resource('leave-types', LeaveTypeController::class);
     Route::resource('leave-applications', LeaveRequestController::class)->names('leave-requests');
     Route::resource('payrolls', PayrollController::class)->except(['show', 'edit', 'update', 'create']);
@@ -55,8 +55,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Email Configuration Route for Admins/Owners
     Route::get('email-configuration', [EmailConfigurationController::class, 'edit'])->name('email-configuration.edit');
     Route::post('email-configuration', [EmailConfigurationController::class, 'update'])->name('email-configuration.update');
-    // ** THIS IS THE NEW TEST ROUTE **
-    Route::get('email-configuration/test', [EmailConfigurationController::class, 'test'])->name('email-configuration.test');
     
     // Custom Employee Print Routes
     Route::get('employees/{employee}/print', [EmployeeController::class, 'print'])->name('employees.print');
@@ -76,6 +74,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('payslip/{salarySheetItem}', [SalaryController::class, 'payslip'])->name('salaries.payslip');
     Route::get('salaries/{salarySheet}/print-all-payslips', [SalaryController::class, 'printAllPayslips'])->name('salaries.payslips.print-all');
     Route::post('salaries/{salarySheet}/send-all-payslips', [SalaryController::class, 'sendAllPayslips'])->name('salaries.payslips.send-all');
+
+    // ** THIS IS THE NEW ROUTE FOR PRINTING THE ENTIRE SHEET **
     Route::get('salaries/{salarySheet}/print', [SalaryController::class, 'printSheet'])->name('salaries.print');
 });
 

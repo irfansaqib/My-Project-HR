@@ -4,29 +4,32 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Payroll extends Model
 {
     use HasFactory;
 
-    /**
-     * The attributes that are mass assignable.
-     */
-    protected $fillable = [
-        'business_id',
-        'salary_sheet_id',
-        'payment_date',
-        'total_amount',
-        'status',
-        'notes',
+    protected $guarded = [];
+
+    protected $casts = [
+        'payment_date' => 'datetime',
     ];
 
-    /**
-     * Get the salary sheet associated with the payroll run.
-     */
-    public function salarySheet(): BelongsTo
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
+
+    public function salarySheet()
     {
         return $this->belongsTo(SalarySheet::class);
+    }
+
+    /**
+     * The salary sheet items that belong to this payroll run.
+     */
+    public function items()
+    {
+        return $this->belongsToMany(SalarySheetItem::class);
     }
 }

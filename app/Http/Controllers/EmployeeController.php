@@ -6,6 +6,7 @@ use App\Models\Business;
 use App\Models\Employee;
 use App\Models\Department;
 use App\Models\Designation;
+use App\Models\LeaveType;
 use App\Models\Qualification;
 use App\Models\Experience;
 use App\Models\SalaryComponent;
@@ -25,24 +26,26 @@ class EmployeeController extends Controller
 
     public function create()
     {
-        $departments = Department::orderBy('name')->get();
-        $designations = Designation::orderBy('name')->get();
+        $business = Auth::user()->business;
+        $departments = $business->departments()->orderBy('name')->get();
+        $designations = $business->designations()->orderBy('name')->get();
         $allowances = SalaryComponent::where('type', 'allowance')->orderBy('name')->get();
         $deductions = SalaryComponent::where('type', 'deduction')->orderBy('name')->get();
-        $businessBankAccounts = BusinessBankAccount::where('business_id', Auth::user()->business_id)->get();
-        return view('employees.create', compact('departments', 'designations', 'allowances', 'deductions', 'businessBankAccounts'));
+        $businessBankAccounts = $business->bankAccounts()->get();
+        $leaveTypes = $business->leaveTypes()->orderBy('name')->get();
+
+        return view('employees.create', compact('departments', 'designations', 'allowances', 'deductions', 'businessBankAccounts', 'leaveTypes'));
     }
 
     public function store(Request $request)
     {
-        // Add all necessary validation rules for creation
         $request->validate(['name' => 'required|string|max:255', 'email' => 'required|email|unique:employees,email']);
 
         DB::transaction(function () use ($request) {
             $department = Department::firstOrCreate(['name' => $request->department, 'business_id' => auth()->user()->business_id]);
             $designation = Designation::firstOrCreate(['name' => $request->designation, 'business_id' => auth()->user()->business_id]);
 
-            $employeeData = $request->except(['components', 'qualifications', 'experiences', 'department', 'designation']);
+            $employeeData = $request->except(['components', 'qualifications', 'experiences', 'department', 'designation', 'leaves']);
             $employeeData['business_id'] = auth()->user()->business_id;
             $employeeData['department_id'] = $department->id;
             $employeeData['designation_id'] = $designation->id;
@@ -57,40 +60,36 @@ class EmployeeController extends Controller
     
     public function show(Employee $employee)
     {
-        $employee->load('qualifications', 'experiences', 'salaryComponents');
+        $employee->load('qualifications', 'experiences', 'salaryComponents', 'leaveTypes');
 
-        // --- THIS IS THE NEW LOGIC ---
-        // 1. Resolve the tax calculator service from the container.
         $taxCalculator = resolve(TaxCalculatorService::class);
-        // 2. Calculate the estimated monthly tax for this employee.
         $monthlyTax = $taxCalculator->calculate($employee, now());
-        // --- END OF NEW LOGIC ---
         
-        // 3. Pass the employee and the calculated tax to the view.
         return view('employees.show', compact('employee', 'monthlyTax'));
     }
 
     public function edit(Employee $employee)
     {
-        $departments = Department::orderBy('name')->get();
-        $designations = Designation::orderBy('name')->get();
+        $business = Auth::user()->business;
+        $departments = $business->departments()->orderBy('name')->get();
+        $designations = $business->designations()->orderBy('name')->get();
         $allowances = SalaryComponent::where('type', 'allowance')->get();
         $deductions = SalaryComponent::where('type', 'deduction')->get();
-        $businessBankAccounts = BusinessBankAccount::where('business_id', Auth::user()->business_id)->get();
+        $businessBankAccounts = $business->bankAccounts()->get();
+        $leaveTypes = $business->leaveTypes()->orderBy('name')->get();
         
-        return view('employees.edit', compact('employee', 'departments', 'designations', 'allowances', 'deductions', 'businessBankAccounts'));
+        return view('employees.edit', compact('employee', 'departments', 'designations', 'allowances', 'deductions', 'businessBankAccounts', 'leaveTypes'));
     }
 
     public function update(Request $request, Employee $employee)
     {
-        // Add all necessary validation rules for update
         $request->validate(['name' => 'required|string|max:255', 'email' => 'required|email|unique:employees,email,'.$employee->id]);
 
         DB::transaction(function () use ($request, $employee) {
             $department = Department::firstOrCreate(['name' => $request->department, 'business_id' => auth()->user()->business_id]);
             $designation = Designation::firstOrCreate(['name' => $request->designation, 'business_id' => auth()->user()->business_id]);
             
-            $employeeData = $request->except(['components', 'qualifications', 'experiences', 'department', 'designation']);
+            $employeeData = $request->except(['components', 'qualifications', 'experiences', 'department', 'designation', 'leaves']);
             $employeeData['department_id'] = $department->id;
             $employeeData['designation_id'] = $designation->id;
 
@@ -110,7 +109,6 @@ class EmployeeController extends Controller
 
     protected function updateRelated(Request $request, Employee $employee)
     {
-        // Handle salary components with amounts
         $componentsToSync = [];
         if ($request->has('components')) {
             foreach ($request->components as $id => $amount) {
@@ -121,7 +119,16 @@ class EmployeeController extends Controller
         }
         $employee->salaryComponents()->sync($componentsToSync);
         
-        // Handle qualifications
+        $leavesToSync = [];
+        if ($request->has('leaves')) {
+            foreach ($request->leaves as $id => $days) {
+                if (!is_null($days) && is_numeric($days)) {
+                    $leavesToSync[$id] = ['days_allotted' => $days];
+                }
+            }
+        }
+        $employee->leaveTypes()->sync($leavesToSync);
+
         if ($request->has('qualifications')) {
              $existingQualIds = $employee->qualifications->pluck('id')->all();
             $newQualIds = [];
@@ -138,7 +145,6 @@ class EmployeeController extends Controller
             Qualification::destroy(array_diff($existingQualIds, $newQualIds));
         }
 
-        // Handle experiences
         if ($request->has('experiences')) {
             $existingExpIds = $employee->experiences->pluck('id')->all();
             $newExpIds = [];
@@ -158,8 +164,14 @@ class EmployeeController extends Controller
 
     public function print(Employee $employee)
     {
+        $employee->load('qualifications', 'experiences', 'salaryComponents', 'leaveTypes');
         $business = Business::find(Auth::user()->business_id);
-        return view('employees.print', compact('employee', 'business'));
+
+        // ** THIS LOGIC HAS BEEN ADDED **
+        $taxCalculator = resolve(TaxCalculatorService::class);
+        $monthlyTax = $taxCalculator->calculate($employee, now());
+
+        return view('employees.print', compact('employee', 'business', 'monthlyTax'));
     }
 
     public function printContract(Employee $employee)

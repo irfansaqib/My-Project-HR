@@ -11,9 +11,6 @@ class Employee extends Model
 {
     use HasFactory;
 
-    /**
-     * Use guarded instead of fillable for simplicity with the new controller logic.
-     */
     protected $guarded = [];
 
     public function department(): BelongsTo
@@ -50,6 +47,21 @@ class Employee extends Model
 
     public function payingBankAccount()
     {
-    return $this->belongsTo(BusinessBankAccount::class, 'business_bank_account_id');
+        return $this->belongsTo(BusinessBankAccount::class, 'business_bank_account_id');
+    }
+
+    public function leaveRequests()
+    {
+        return $this->hasMany(LeaveRequest::class);
+    }
+
+    /**
+     * The leave types assigned to the employee.
+     */
+    public function leaveTypes(): BelongsToMany
+    {
+        return $this->belongsToMany(LeaveType::class, 'employee_leave_type')
+                    ->withPivot('days_allotted')
+                    ->withTimestamps();
     }
 }

@@ -84,6 +84,14 @@
                         </ul>
                     </li>
                     @endcanany
+                    @hasanyrole('Owner|Admin')
+                        <li class="nav-item">
+                            <a href="{{ route('email-configuration.edit') }}" class="nav-link {{ request()->routeIs('email-configuration.edit') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-envelope-open-text"></i>
+                                <p>Email Settings</p>
+                            </a>
+                        </li>
+                    @endhasanyrole
                     @can('client-credential-view')
                      <li class="nav-item">
                         <a href="{{ route('client-credentials.index') }}" class="nav-link {{ request()->routeIs('client-credentials.*') ? 'active' : '' }}">
@@ -137,18 +145,19 @@
                     </li>
                     @endcanany
 
+                    {{-- ** THIS SECTION HAS BEEN CORRECTED ** --}}
                     @canany(['leave-application-view', 'leave-type-view'])
-                    <li class="nav-item {{ request()->routeIs(['leave-applications.*', 'leave-types.*']) ? 'menu-open' : '' }}">
+                    <li class="nav-item {{ request()->routeIs(['leave-requests.*', 'leave-types.*']) ? 'menu-open' : '' }}">
                         <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-calendar-alt"></i>
                             <p>Leave Management<i class="right fas fa-angle-left"></i></p>
                         </a>
                         <ul class="nav nav-treeview">
                             @can('leave-application-create')
-                            <li class="nav-item"><a href="{{ route('leave-applications.create') }}" class="nav-link {{ request()->routeIs('leave-applications.create') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Apply for Leave</p></a></li>
+                            <li class="nav-item"><a href="{{ route('leave-requests.create') }}" class="nav-link {{ request()->routeIs('leave-requests.create') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Apply for Leave</p></a></li>
                             @endcan
                             @can('leave-application-view')
-                            <li class="nav-item"><a href="{{ route('leave-applications.index') }}" class="nav-link {{ request()->routeIs('leave-applications.index') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Leave Applications</p></a></li>
+                            <li class="nav-item"><a href="{{ route('leave-requests.index') }}" class="nav-link {{ request()->routeIs('leave-requests.index') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Leave Applications</p></a></li>
                             @endcan
                             @can('leave-type-view')
                             <li class="nav-item"><a href="{{ route('leave-types.index') }}" class="nav-link {{ request()->routeIs('leave-types.index') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Leave Types</p></a></li>

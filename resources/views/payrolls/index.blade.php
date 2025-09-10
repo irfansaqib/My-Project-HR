@@ -3,22 +3,36 @@
 
 @section('content')
 <div class="card">
-    <div class="card-header">
-        <h3 class="card-title">Run Payroll</h3>
-        <p class="card-text text-muted">This page lists pending salary sheets, grouped by the paying bank account assigned to each employee.</p>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <h3 class="card-title">Run Payroll</h3>
+            <p class="card-text text-muted mb-0">This page lists pending salary sheets, grouped by the paying bank account assigned to each employee.</p>
+        </div>
+        <a href="{{ route('payrolls.history') }}" class="btn btn-secondary">View Payroll History</a>
     </div>
     <div class="card-body">
+        @if(session('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
+        @if(session('error'))
+            <div class="alert alert-danger">{{ session('error') }}</div>
+        @endif
+
         @forelse ($pendingSheets as $sheet)
             <div class="card card-outline card-primary mb-4">
                 <div class="card-header">
                     <h4 class="card-title">
-                        Salary Sheet for <strong>{{ \Carbon\Carbon::parse($sheet->month)->format('F, Y') }}</strong>
+                        Salary Sheet for <strong>{{ $sheet->month->format('F, Y') }}</strong>
                     </h4>
                 </div>
                 <div class="card-body">
-                    @foreach ($groupedItems[$sheet->month] as $bankName => $items)
+                    @forelse ($groupedItems[$sheet->month->format('Y-m-d')] as $bankId => $items)
+                        @php
+                            $firstItem = $items->first();
+                            $bankName = $firstItem->employee->payingBankAccount->bank_name ?? 'Unassigned Bank Account';
+                        @endphp
                         <h5 class="mb-3">
-                            Pay From: <strong>{{ $bankName ?: 'Unassigned Bank Account' }}</strong>
+                            Pay From: <strong>{{ $bankName }}</strong>
                         </h5>
                         <table class="table table-sm table-bordered mb-4">
                             <thead>
@@ -42,9 +56,18 @@
                                 </tr>
                             </tfoot>
                         </table>
-                        {{-- This "Run Payroll" button would need further logic to process only this group --}}
-                        <button class="btn btn-sm btn-success mb-3" disabled>Run Payroll for {{ $bankName ?: 'Unassigned' }}</button>
-                    @endforeach
+                        
+                        <form action="{{ route('payrolls.run-by-bank') }}" method="POST" onsubmit="return confirm('Are you sure you want to run payroll for this group? This action cannot be undone.');">
+                            @csrf
+                            <input type="hidden" name="salary_sheet_id" value="{{ $sheet->id }}">
+                            <input type="hidden" name="business_bank_account_id" value="{{ $bankId }}">
+                            <button type="submit" class="btn btn-sm btn-success mb-3">
+                                Run Payroll for {{ $firstItem->employee->payingBankAccount->bank_name ?? 'Unassigned' }}
+                            </button>
+                        </form>
+                    @empty
+                        <p class="text-muted">All groups for this month have been paid.</p>
+                    @endforelse
                 </div>
             </div>
         @empty

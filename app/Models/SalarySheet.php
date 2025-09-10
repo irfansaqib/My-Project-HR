@@ -4,32 +4,34 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SalarySheet extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'business_id',
-        'month',
-        'status',
-    ];
+    protected $guarded = [];
 
     /**
-     * Get the items for the salary sheet.
+     * The attributes that should be cast.
+     *
+     * @var array
      */
-    public function items(): HasMany
+    protected $casts = [
+        'month' => 'date',
+    ];
+
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
+
+    public function items()
     {
         return $this->hasMany(SalarySheetItem::class);
     }
 
-    /**
-     * Get the business that this salary sheet belongs to.
-     */
-    public function business(): BelongsTo
+    public function payrolls()
     {
-        return $this->belongsTo(Business::class);
+        return $this->hasMany(Payroll::class);
     }
 }

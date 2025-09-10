@@ -104,15 +104,32 @@
                             </dl>
                             <hr>
                             <strong><i class="fas fa-calendar-check mr-1"></i> Leave Allotment</strong>
-                            <table class="table table-sm text-center mt-2">
-                                <thead class="thead-light"><tr><th>Annual</th><th>Sick</th><th>Casual</th><th>Other</th><th>Total</th></tr></thead>
-                                <tbody><tr>
-                                    <td>{{ $employee->leaves_annual }}</td>
-                                    <td>{{ $employee->leaves_sick }}</td>
-                                    <td>{{ $employee->leaves_casual }}</td>
-                                    <td>{{ $employee->leaves_other }}</td>
-                                    <td class="font-weight-bold">{{ $employee->leaves_annual + $employee->leaves_sick + $employee->leaves_casual + $employee->leaves_other }}</td>
-                                </tr></tbody>
+                            <table class="table table-sm table-bordered mt-2" style="max-width: 600px;">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>Leave Type</th>
+                                        <th class="text-right">Days Allotted</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($employee->leaveTypes as $leaveType)
+                                        <tr>
+                                            <td>{{ $leaveType->name }}</td>
+                                            <td class="text-right">{{ $leaveType->pivot->days_allotted }}</td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="2" class="text-center text-muted">No leave types have been assigned.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                                <tfoot class="bg-light font-weight-bold">
+                                    <tr>
+                                        <td>Total Leaves</td>
+                                        {{-- ** THIS IS THE CORRECTED LINE ** --}}
+                                        <td class="text-right">{{ $employee->leaveTypes->sum('pivot.days_allotted') }}</td>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                         
@@ -164,8 +181,11 @@
                         
                         <div class="tab-pane" id="salary">
                              <strong><i class="fas fa-money-bill-wave mr-1"></i> Salary Package</strong>
-                             <table class="table table-sm mt-2">
-                                <tr><th style="width: 50%">Basic Salary</th><td class="text-right">{{ number_format($employee->basic_salary, 2) }}</td></tr>
+                             <table class="table table-sm mt-2" style="max-width: 600px;">
+                                <tr>
+                                    <th>Basic Salary</th>
+                                    <td class="text-right">{{ number_format($employee->basic_salary, 2) }}</td>
+                                </tr>
                                 @foreach($employee->salaryComponents->where('type', 'allowance') as $component)
                                     <tr><th>{{ $component->name }}</th><td class="text-right">{{ number_format($component->pivot->amount, 2) }}</td></tr>
                                 @endforeach
@@ -176,13 +196,13 @@
                                 @endforeach
                                 
                                 <tr>
-                                    <th>Income Tax (System Calculated)</th>
+                                    <th>Income Tax</th>
                                     <td class="text-right text-danger">({{ number_format($monthlyTax, 2) }})</td>
                                 </tr>
 
                                 <tr class="bg-secondary font-weight-bold">
                                     <th>Net Salary</th>
-                                    <td class="text-right">{{ number_format($employee->net_salary - $monthlyTax, 2) }}</td>
+                                    <td class="text-right">{{ number_format($employee->net_salary, 2) }}</td>
                                 </tr>
                             </table>
                         </div>
