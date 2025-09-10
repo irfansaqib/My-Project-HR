@@ -64,4 +64,12 @@ class Employee extends Model
                     ->withPivot('days_allotted')
                     ->withTimestamps();
     }
+
+    /**
+     * Get the attendance records for the employee.
+     */
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class);
+    }
 }

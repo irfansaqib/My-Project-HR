@@ -21,8 +21,6 @@ class Business extends Model
         return $this->hasMany(Employee::class);
     }
 
-
-
     public function departments()
     {
         return $this->hasMany(Department::class);
@@ -33,27 +31,31 @@ class Business extends Model
         return $this->hasMany(Designation::class);
     }
 
-    /**
-     * Get the leave types for the business.
-     */
     public function leaveTypes()
     {
         return $this->hasMany(LeaveType::class);
     }
 
-    /**
-     * Get the bank accounts for the business.
-     */
     public function bankAccounts()
     {
         return $this->hasMany(BusinessBankAccount::class);
     }
-
-    /**
-     * Get the email configuration for the business.
-     */
+    
     public function emailConfiguration()
     {
         return $this->hasOne(EmailConfiguration::class);
+    }
+
+    public function shifts()
+    {
+        return $this->hasMany(Shift::class);
+    }
+
+    /**
+     * Get the holidays for the business.
+     */
+    public function holidays()
+    {
+        return $this->hasMany(Holiday::class);
     }
 }

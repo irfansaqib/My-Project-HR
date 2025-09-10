@@ -19,6 +19,10 @@ use App\Http\Controllers\SalaryController;
 use App\Http\Controllers\TaxRateController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\EmailConfigurationController;
+use App\Http\Controllers\ShiftController;
+use App\Http\Controllers\HolidayController;
+use App\Http\Controllers\EmployeeShiftAssignmentController;
+use App\Http\Controllers\AttendanceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -51,11 +55,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('leave-applications', LeaveRequestController::class)->names('leave-requests');
     Route::resource('payrolls', PayrollController::class)->except(['show', 'edit', 'update', 'create']);
     Route::resource('salary-components', SalaryComponentController::class);
+    Route::resource('shifts', ShiftController::class);
+    Route::resource('holidays', HolidayController::class);
+    Route::resource('attendances', AttendanceController::class)->except(['edit', 'show', 'destroy']); // ** UPDATED **
+
+    // Bulk Attendance Routes
+    Route::get('attendances-bulk', [AttendanceController::class, 'bulkCreate'])->name('attendances.bulk.create');
+    Route::post('attendances-bulk', [AttendanceController::class, 'bulkStore'])->name('attendances.bulk.store');
+    Route::get('api/employees-for-attendance', [AttendanceController::class, 'getEmployeesForAttendance'])->name('api.employees-for-attendance');
+
+    // Shift Assignment Routes
+    Route::get('shift-assignments', [EmployeeShiftAssignmentController::class, 'create'])->name('shift-assignments.create');
+    Route::post('shift-assignments', [EmployeeShiftAssignmentController::class, 'store'])->name('shift-assignments.store');
 
     // Email Configuration Route for Admins/Owners
     Route::get('email-configuration', [EmailConfigurationController::class, 'edit'])->name('email-configuration.edit');
     Route::post('email-configuration', [EmailConfigurationController::class, 'update'])->name('email-configuration.update');
-    // ** THIS IS THE NEW TEST ROUTE **
     Route::get('email-configuration/test', [EmailConfigurationController::class, 'test'])->name('email-configuration.test');
     
     // Custom Employee Print Routes
