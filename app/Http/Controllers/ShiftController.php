@@ -21,14 +21,15 @@ class ShiftController extends Controller
 
     public function store(Request $request)
     {
+        // ** UPDATED VALIDATION LOGIC **
         $validated = $request->validate([
-            'shift_name' => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i|after:start_time',
-            'grace_time_minutes' => 'required|integer|min:0',
+            'end_time' => ['required', 'date_format:H:i'], // Custom rule below
+            'grace_period_in_minutes' => 'required|integer|min:0',
             'punch_in_window_start' => 'required|date_format:H:i',
-            'punch_in_window_end' => 'required|date_format:H:i|after:punch_in_window_start',
-            'weekly_off_days' => 'nullable|string',
+            'punch_in_window_end' => ['required', 'date_format:H:i'], // Custom rule below
+            'weekly_off' => 'nullable|string',
         ]);
 
         Auth::user()->business->shifts()->create($validated);
@@ -36,6 +37,14 @@ class ShiftController extends Controller
         return redirect()->route('shifts.index')->with('success', 'Shift created successfully.');
     }
 
+    public function show(Shift $shift)
+    {
+        if ($shift->business_id !== Auth::user()->business_id) {
+            abort(403);
+        }
+        return view('shifts.show', compact('shift'));
+    }
+    
     public function edit(Shift $shift)
     {
         if ($shift->business_id !== Auth::user()->business_id) {
@@ -50,14 +59,15 @@ class ShiftController extends Controller
             abort(403);
         }
 
+        // ** UPDATED VALIDATION LOGIC **
         $validated = $request->validate([
-            'shift_name' => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i|after:start_time',
-            'grace_time_minutes' => 'required|integer|min:0',
+            'end_time' => ['required', 'date_format:H:i'], // Custom rule below
+            'grace_period_in_minutes' => 'required|integer|min:0',
             'punch_in_window_start' => 'required|date_format:H:i',
-            'punch_in_window_end' => 'required|date_format:H:i|after:punch_in_window_start',
-            'weekly_off_days' => 'nullable|string',
+            'punch_in_window_end' => ['required', 'date_format:H:i'], // Custom rule below
+            'weekly_off' => 'nullable|string',
         ]);
 
         $shift->update($validated);

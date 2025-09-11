@@ -55,14 +55,16 @@ class Employee extends Model
         return $this->hasMany(LeaveRequest::class);
     }
 
-    /**
-     * The leave types assigned to the employee.
-     */
     public function leaveTypes(): BelongsToMany
     {
         return $this->belongsToMany(LeaveType::class, 'employee_leave_type')
                     ->withPivot('days_allotted')
                     ->withTimestamps();
+    }
+
+    public function shiftAssignments()
+    {
+        return $this->hasMany(EmployeeShiftAssignment::class);
     }
 
     /**

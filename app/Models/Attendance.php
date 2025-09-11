@@ -9,25 +9,24 @@ class Attendance extends Model
 {
     use HasFactory;
 
-    /**
-     * The attributes that aren't mass assignable.
-     *
-     * @var array
-     */
-    protected $guarded = [];
-
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array
-     */
-    protected $casts = [
-        'date' => 'date',
+    protected $fillable = [
+        'employee_id',
+        'date',
+        'status',
+        'check_in',
+        'check_out',
     ];
 
     /**
-     * Get the employee that this attendance record belongs to.
+     * --- FINAL FIX ---
+     * This tells Laravel to automatically convert the 'date' column
+     * from a text string into a proper date object (Carbon instance).
+     * This allows you to use functions like ->format() on it.
      */
+    protected $casts = [
+        'date' => 'datetime',
+    ];
+
     public function employee()
     {
         return $this->belongsTo(Employee::class);

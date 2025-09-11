@@ -13,20 +13,19 @@
                 <thead>
                     <tr>
                         <th>Shift Name</th>
-                        <th>Start Time</th>
-                        <th>End Time</th>
+                        <th>Shift Timings</th>
                         <th>Grace Period</th>
-                        <th style="width: 150px;">Actions</th>
+                        <th style="width: 200px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($shifts as $shift)
                         <tr>
-                            <td>{{ $shift->shift_name }}</td>
-                            <td>{{ \Carbon\Carbon::parse($shift->start_time)->format('h:i A') }}</td>
-                            <td>{{ \Carbon\Carbon::parse($shift->end_time)->format('h:i A') }}</td>
+                            <td>{{ $shift->name }}</td>
+                            <td>{{ $shift->start_time->format('h:i A') }} - {{ $shift->end_time->format('h:i A') }}</td>
                             <td>{{ $shift->grace_period_in_minutes }} minutes</td>
                             <td>
+                                <a href="{{ route('shifts.show', $shift->id) }}" class="btn btn-sm btn-info">View</a>
                                 <a href="{{ route('shifts.edit', $shift->id) }}" class="btn btn-sm btn-warning">Edit</a>
                                 <form action="{{ route('shifts.destroy', $shift->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this shift?');">
                                     @csrf

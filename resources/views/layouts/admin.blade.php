@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
     <link rel="stylesheet" href="{{ asset('adminlte/plugins/fontawesome-free/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ asset('adminlte/dist/css/adminlte.min.css') }}">
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
     @vite('resources/css/app.css')
     @stack('styles')
 </head>
@@ -62,61 +63,39 @@
                     @if (Auth::user()?->business)
                         <li class="nav-item"><a href="{{ route('business.show', ['business' => Auth::user()->business->id]) }}" class="nav-link {{ request()->routeIs('business.*') ? 'active' : '' }}"><i class="nav-icon fas fa-briefcase"></i><p>Business Profile</p></a></li>
                     @else
-                        @can('business-create')
                         <li class="nav-item"><a href="{{ route('business.create') }}" class="nav-link {{ request()->routeIs('business.create') ? 'active' : '' }}"><i class="nav-icon fas fa-plus-circle"></i><p>Create Business</p></a></li>
-                        @endcan
                     @endif
                     
                     <li class="nav-header">ADMINISTRATION</li>
-                    @canany(['user-view', 'role-view'])
-                    <li class="nav-item {{ request()->routeIs(['users.*', 'roles.*']) ? 'menu-open' : '' }}">
-                        <a href="#" class="nav-link">
+                    <li class="nav-item {{ request()->routeIs(['users.*', 'roles.*', 'email-configuration.*']) ? 'menu-open' : '' }}">
+                        <a href="#" class="nav-link {{ request()->routeIs(['users.*', 'roles.*', 'email-configuration.*']) ? 'active' : '' }}">
                             <i class="nav-icon fas fa-users-cog"></i>
-                            <p>Users & Roles <i class="right fas fa-angle-left"></i></p>
+                            <p>Admin Settings<i class="right fas fa-angle-left"></i></p>
                         </a>
                         <ul class="nav nav-treeview">
-                            @can('user-view')
-                            <li class="nav-item"><a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Users</p></a></li>
-                            @endcan
-                            @can('role-view')
-                            <li class="nav-item"><a href="{{ route('roles.index') }}" class="nav-link {{ request()->routeIs('roles.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Roles</p></a></li>
-                            @endcan
+                            <li class="nav-item"><a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Users & Roles</p></a></li>
+                            @hasanyrole('Owner|Admin')
+                            <li class="nav-item"><a href="{{ route('email-configuration.edit') }}" class="nav-link {{ request()->routeIs('email-configuration.edit') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Email Settings</p></a></li>
+                            @endhasanyrole
                         </ul>
                     </li>
-                    @endcanany
-                    @hasanyrole('Owner|Admin')
-                        <li class="nav-item">
-                            <a href="{{ route('email-configuration.edit') }}" class="nav-link {{ request()->routeIs('email-configuration.edit') ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-envelope-open-text"></i>
-                                <p>Email Settings</p>
-                            </a>
-                        </li>
-                    @endhasanyrole
-                    @can('client-credential-view')
-                     <li class="nav-item">
-                        <a href="{{ route('client-credentials.index') }}" class="nav-link {{ request()->routeIs('client-credentials.*') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-key"></i>
-                            <p>Client Credentials</p>
-                        </a>
-                    </li>
-                    @endcan
+                    <li class="nav-item"><a href="{{ route('client-credentials.index') }}" class="nav-link {{ request()->routeIs('client-credentials.*') ? 'active' : '' }}"><i class="nav-icon fas fa-key"></i><p>Client Credentials</p></a></li>
 
                     <li class="nav-header">HR MANAGEMENT</li>
-                    <li class="nav-item {{ request()->routeIs(['employees.*', 'designations.*', 'departments.*', 'holidays.*']) ? 'menu-open' : '' }}">
-                        <a href="#" class="nav-link">
+                    <li class="nav-item {{ request()->routeIs(['employees.*', 'designations.*', 'departments.*']) ? 'menu-open' : '' }}">
+                        <a href="#" class="nav-link {{ request()->routeIs(['employees.*', 'designations.*', 'departments.*']) ? 'active' : '' }}">
                             <i class="nav-icon fas fa-user-tie"></i>
-                            <p>Employees & HR<i class="right fas fa-angle-left"></i></p>
+                            <p>Employees<i class="right fas fa-angle-left"></i></p>
                         </a>
                         <ul class="nav nav-treeview">
                             <li class="nav-item"><a href="{{ route('employees.index') }}" class="nav-link {{ request()->routeIs('employees.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Employee List</p></a></li>
                             <li class="nav-item"><a href="{{ route('designations.index') }}" class="nav-link {{ request()->routeIs('designations.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Designations</p></a></li>
                             <li class="nav-item"><a href="{{ route('departments.index') }}" class="nav-link {{ request()->routeIs('departments.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Departments</p></a></li>
-                            <li class="nav-item"><a href="{{ route('holidays.index') }}" class="nav-link {{ request()->routeIs('holidays.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Public Holidays</p></a></li>
                         </ul>
                     </li>
 
-                    <li class="nav-item {{ request()->routeIs(['leave-requests.*', 'leave-types.*', 'shifts.*', 'shift-assignments.*', 'attendances.*']) ? 'menu-open' : '' }}">
-                        <a href="#" class="nav-link">
+                    <li class="nav-item {{ request()->routeIs(['leave-requests.*', 'leave-types.*', 'shifts.*', 'shift-assignments.*', 'attendances.*', 'holidays.*']) ? 'menu-open' : '' }}">
+                        <a href="#" class="nav-link {{ request()->routeIs(['leave-requests.*', 'leave-types.*', 'shifts.*', 'shift-assignments.*', 'attendances.*', 'holidays.*']) ? 'active' : '' }}">
                             <i class="nav-icon fas fa-calendar-alt"></i>
                             <p>Leave & Attendance<i class="right fas fa-angle-left"></i></p>
                         </a>
@@ -125,14 +104,15 @@
                             <li class="nav-item"><a href="{{ route('attendances.bulk.create') }}" class="nav-link {{ request()->routeIs('attendances.bulk.create') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Bulk Mark Attendance</p></a></li>
                             <li class="nav-item"><a href="{{ route('shifts.index') }}" class="nav-link {{ request()->routeIs('shifts.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Work Shifts</p></a></li>
                             <li class="nav-item"><a href="{{ route('shift-assignments.create') }}" class="nav-link {{ request()->routeIs('shift-assignments.create') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Assign Shifts</p></a></li>
-                            <li class="nav-item"><a href="{{ route('leave-requests.index') }}" class="nav-link {{ request()->routeIs('leave-requests.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Leave Applications</p></a></li>
-                             <li class="nav-item"><a href="{{ route('leave-types.index') }}" class="nav-link {{ request()->routeIs('leave-types.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Leave Types</p></a></li>
+                            <li class="nav-item"><a href="{{ route('leave-requests.create') }}" class="nav-link {{ request()->routeIs('leave-requests.create') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Apply for Leave</p></a></li>
+                            <li class="nav-item"><a href="{{ route('leave-requests.index') }}" class="nav-link {{ request()->routeIs('leave-requests.index') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Leave Applications</p></a></li>
+                            <li class="nav-item"><a href="{{ route('leave-types.index') }}" class="nav-link {{ request()->routeIs('leave-types.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Leave Types</p></a></li>
+                            <li class="nav-item"><a href="{{ route('holidays.index') }}" class="nav-link {{ request()->routeIs('holidays.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Public Holidays</p></a></li>
                         </ul>
                     </li>
 
-                    @canany(['salary-component-view', 'salary-sheet-view', 'tax-rate-view', 'payroll-view'])
                     <li class="nav-item {{ request()->routeIs(['salary-components.*', 'salaries.*', 'tax-rates.*', 'payrolls.*']) ? 'menu-open' : '' }}">
-                        <a href="#" class="nav-link">
+                        <a href="#" class="nav-link {{ request()->routeIs(['salary-components.*', 'salaries.*', 'tax-rates.*', 'payrolls.*']) ? 'active' : '' }}">
                             <i class="nav-icon fas fa-file-invoice-dollar"></i>
                             <p>Payroll<i class="right fas fa-angle-left"></i></p>
                         </a>
@@ -143,7 +123,17 @@
                             <li class="nav-item"><a href="{{ route('payrolls.index') }}" class="nav-link {{ request()->routeIs('payrolls.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Run Payroll</p></a></li>
                         </ul>
                     </li>
-                    @endcanany
+                    
+                    <li class="nav-item {{ request()->routeIs(['reports.*']) ? 'menu-open' : '' }}">
+                        <a href="#" class="nav-link {{ request()->routeIs(['reports.*']) ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-chart-pie"></i>
+                            <p>Reports<i class="right fas fa-angle-left"></i></p>
+                        </a>
+                        <ul class="nav nav-treeview">
+                            <li class="nav-item"><a href="{{ route('reports.attendance') }}" class="nav-link {{ request()->routeIs('reports.attendance') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Attendance Report</p></a></li>
+                            <li class="nav-item"><a href="{{ route('reports.attendance-calendar') }}" class="nav-link {{ request()->routeIs('reports.attendance-calendar') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Attendance Calendar</p></a></li>
+                        </ul>
+                    </li>
 
                 </ul>
             </nav>

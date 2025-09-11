@@ -23,6 +23,7 @@ use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\EmployeeShiftAssignmentController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\ReportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -35,6 +36,13 @@ Route::get('/', function () { return view('welcome'); });
 Route::middleware(['auth', 'verified'])->group(function () {
     
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Reporting Routes
+    Route::get('reports/attendance', [ReportController::class, 'attendanceReport'])->name('reports.attendance');
+    // ** NEW: Calendar Routes **
+    Route::get('reports/attendance-calendar', [ReportController::class, 'attendanceCalendar'])->name('reports.attendance-calendar');
+    Route::get('api/calendar-events', [ReportController::class, 'calendarEvents'])->name('api.calendar-events');
+
 
     // Business & Profile Routes
     Route::resource('business', BusinessController::class)->except(['index', 'destroy']);
@@ -57,7 +65,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('salary-components', SalaryComponentController::class);
     Route::resource('shifts', ShiftController::class);
     Route::resource('holidays', HolidayController::class);
-    Route::resource('attendances', AttendanceController::class)->except(['edit', 'show', 'destroy']); // ** UPDATED **
+    Route::resource('attendances', AttendanceController::class)->except(['edit', 'show', 'destroy']);
 
     // Bulk Attendance Routes
     Route::get('attendances-bulk', [AttendanceController::class, 'bulkCreate'])->name('attendances.bulk.create');

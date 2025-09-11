@@ -15,9 +15,7 @@ class EmployeeShiftAssignmentController extends Controller
     {
         $business = Auth::user()->business;
         $employees = $business->employees()->where('status', 'active')->orderBy('name')->get();
-        
         // ** THIS LINE IS CORRECTED **
-        // Changed orderBy('shift_name') to orderBy('name') to match your table
         $shifts = $business->shifts()->orderBy('name')->get();
 
         return view('shift-assignments.create', compact('employees', 'shifts'));

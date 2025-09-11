@@ -13,77 +13,49 @@ class AttendanceController extends Controller
     public function index(Request $request)
     {
         $business = Auth::user()->business;
+        $filterDate = $request->input('date');
 
-        $query = Attendance::whereHas('employee', function ($query) use ($business) {
+        $attendancesQuery = Attendance::whereHas('employee', function ($query) use ($business) {
             $query->where('business_id', $business->id);
         })->with('employee');
 
-        $filterDate = $request->filled('date') ? $request->date : now()->format('Y-m-d');
-        $query->where('date', $filterDate);
+        if ($filterDate) {
+            $attendancesQuery->where('date', $filterDate);
+        }
 
-        $attendances = $query->orderBy('created_at', 'desc')->paginate(20);
-
-        // Calculate work duration for each record
-        $attendances->getCollection()->transform(function ($attendance) {
-            if ($attendance->check_in && $attendance->check_out) {
-                $checkIn = Carbon::parse($attendance->check_in);
-                $checkOut = Carbon::parse($attendance->check_out);
-                $duration = $checkIn->diff($checkOut);
-                $attendance->work_duration = $duration->format('%h h %i m');
-            } else {
-                $attendance->work_duration = 'N/A';
-            }
-            return $attendance;
-        });
-
+        $attendances = $attendancesQuery->orderBy('date', 'desc')->paginate(25);
+        
         return view('attendances.index', compact('attendances', 'filterDate'));
     }
 
     public function create()
     {
-        $business = Auth::user()->business;
-        $employees = $business->employees()->where('status', 'active')->orderBy('name')->get();
+        $employees = Auth::user()->business->employees()->orderBy('name')->get();
         return view('attendances.create', compact('employees'));
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        $validatedData = $request->validate([
             'employee_id' => 'required|exists:employees,id',
-            'date'        => 'required|date',
-            'check_in'    => 'required|date_format:H:i',
-            'check_out'   => 'required|date_format:H:i|after:check_in',
-            'status'      => 'required|in:present,absent,leave,half-day',
+            'date' => 'required|date',
+            'status' => 'required|string',
+            'check_in' => 'nullable|date_format:H:i',
+            'check_out' => 'nullable|date_format:H:i',
         ]);
 
-        Attendance::updateOrCreate(
-            ['employee_id' => $validated['employee_id'], 'date' => $validated['date']],
-            ['check_in' => $validated['check_in'], 'check_out' => $validated['check_out'], 'status' => $validated['status']]
-        );
-
-        return redirect()->route('attendances.index', ['date' => $validated['date']])->with('success', 'Attendance recorded successfully.');
-    }
-
-    public function update(Request $request, Attendance $attendance)
-    {
-        if ($attendance->employee->business_id !== Auth::user()->business_id) {
-            abort(403);
+        $businessEmployeeIds = Auth::user()->business->employees()->pluck('id')->all();
+        if (in_array($validatedData['employee_id'], $businessEmployeeIds)) {
+            Attendance::updateOrCreate(
+                [
+                    'employee_id' => $validatedData['employee_id'],
+                    'date' => $validatedData['date']
+                ],
+                $validatedData
+            );
         }
 
-        $validated = $request->validate([
-            'check_in'    => 'nullable|date_format:H:i',
-            'check_out'   => 'nullable|date_format:H:i|after_or_equal:check_in',
-            'status'      => 'required|in:present,absent,leave,half-day',
-        ]);
-
-        if ($validated['status'] === 'absent' || $validated['status'] === 'leave') {
-            $validated['check_in'] = null;
-            $validated['check_out'] = null;
-        }
-
-        $attendance->update($validated);
-        
-        return redirect()->route('attendances.index', ['date' => $attendance->date->format('Y-m-d')])->with('success', 'Attendance updated successfully.');
+        return redirect()->route('attendances.index')->with('success', 'Attendance recorded successfully.');
     }
 
     public function bulkCreate()
@@ -91,51 +63,79 @@ class AttendanceController extends Controller
         return view('attendances.bulk_create');
     }
 
+    /**
+     * --- THIS IS THE FINAL FIX ---
+     * This function now correctly reads the data structure from your bulk attendance form.
+     */
     public function bulkStore(Request $request)
     {
         $request->validate([
             'date' => 'required|date',
             'attendances' => 'required|array',
-            'attendances.*.employee_id' => 'required|exists:employees,id',
-            'attendances.*.check_in' => 'nullable|date_format:H:i',
-            'attendances.*.check_out' => 'nullable|date_format:H:i|after_or_equal:attendances.*.check_in',
-            'attendances.*.status' => 'required|in:present,absent,leave,half-day',
         ]);
+        
+        $date = $request->input('date');
+        $businessEmployeeIds = Auth::user()->business->employees()->pluck('id')->all();
 
-        foreach ($request->attendances as $attData) {
-            if (empty($attData['check_in']) && empty($attData['check_out'])) {
-                if ($attData['status'] === 'absent' || $attData['status'] === 'leave') {
-                    Attendance::updateOrCreate(
-                        ['employee_id' => $attData['employee_id'], 'date' => $request->date],
-                        ['status' => $attData['status'], 'check_in' => null, 'check_out' => null]
-                    );
-                }
-                continue;
+        // The loop is now corrected to handle the data from your form.
+        foreach ($request->input('attendances') as $attendanceData) {
+            // Get the employee ID from *inside* the data array.
+            $employeeId = $attendanceData['employee_id'] ?? null;
+
+            if ($employeeId && in_array($employeeId, $businessEmployeeIds) && !empty($attendanceData['status'])) {
+                Attendance::updateOrCreate(
+                    [
+                        'employee_id' => $employeeId,
+                        'date' => $date,
+                    ],
+                    [
+                        'status' => $attendanceData['status'],
+                        'check_in' => $attendanceData['check_in'] ?? null,
+                        'check_out' => $attendanceData['check_out'] ?? null,
+                    ]
+                );
             }
-            
-            Attendance::updateOrCreate(
-                ['employee_id' => $attData['employee_id'], 'date' => $request->date],
-                [
-                    'check_in'  => $attData['check_in'] ?? null,
-                    'check_out' => $attData['check_out'] ?? null,
-                    'status'    => $attData['status'],
-                ]
-            );
         }
 
-        return redirect()->route('attendances.index', ['date' => $request->date])->with('success', 'Attendance sheet saved successfully.');
+        return redirect()->route('attendances.index')->with('success', 'Bulk attendance has been recorded successfully.');
     }
-
+    
     public function getEmployeesForAttendance(Request $request)
     {
         $request->validate(['date' => 'required|date']);
-        $business = Auth::user()->business;
-        $employees = $business->employees()->where('status', 'active')
-            ->with(['attendances' => function ($query) use ($request) {
-                $query->where('date', $request->date);
+        $date = $request->input('date');
+
+        $employees = Auth::user()->business->employees()->where('status', 'active')
+            ->with(['attendances' => function ($query) use ($date) {
+                $query->where('date', $date);
             }])
-            ->orderBy('name')->get();
-        
+            ->orderBy('name')
+            ->get();
+            
         return response()->json($employees);
+    }
+    
+    public function edit(Attendance $attendance)
+    {
+        $this->authorize('update', $attendance);
+        $employees = Auth::user()->business->employees()->orderBy('name')->get();
+        return view('attendances.edit', compact('attendance', 'employees'));
+    }
+
+    public function update(Request $request, Attendance $attendance)
+    {
+        $this->authorize('update', $attendance);
+        
+        $validatedData = $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'date' => 'required|date',
+            'status' => 'required|string',
+            'check_in' => 'nullable|date_format:H:i',
+            'check_out' => 'nullable|date_format:H:i',
+        ]);
+
+        $attendance->update($validatedData);
+
+        return redirect()->route('attendances.index')->with('success', 'Attendance record updated successfully.');
     }
 }

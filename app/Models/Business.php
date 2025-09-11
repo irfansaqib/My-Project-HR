@@ -50,12 +50,17 @@ class Business extends Model
     {
         return $this->hasMany(Shift::class);
     }
-
-    /**
-     * Get the holidays for the business.
-     */
+    
     public function holidays()
     {
         return $this->hasMany(Holiday::class);
+    }
+
+    /**
+     * Get all of the attendances for the business through its employees.
+     */
+    public function attendances()
+    {
+        return $this->hasManyThrough(Attendance::class, Employee::class);
     }
 }

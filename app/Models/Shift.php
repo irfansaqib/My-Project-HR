@@ -9,6 +9,12 @@ class Shift extends Model
 {
     use HasFactory;
 
+    /**
+     * The attributes that aren't mass assignable.
+     * An empty guarded array means all attributes are mass assignable.
+     *
+     * @var array
+     */
     protected $guarded = [];
 
     /**

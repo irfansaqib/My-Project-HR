@@ -1,16 +1,16 @@
 @csrf
 <div class="row">
     <div class="col-md-6 form-group">
-        <label for="shift_name">Shift Name <span class="text-danger">*</span></label>
-        <input type="text" name="shift_name" id="shift_name" class="form-control @error('shift_name') is-invalid @enderror" value="{{ old('shift_name', $shift->shift_name ?? '') }}" required>
-        @error('shift_name')
+        <label for="name">Shift Name <span class="text-danger">*</span></label>
+        <input type="text" name="name" id="name" class="form-control @error('name') is-invalid @enderror" value="{{ old('name', $shift->name ?? '') }}" required>
+        @error('name')
             <span class="invalid-feedback">{{ $message }}</span>
         @enderror
     </div>
     <div class="col-md-6 form-group">
-        <label for="grace_time_minutes">Grace Period for Late Arrival (Minutes) <span class="text-danger">*</span></label>
-        <input type="number" name="grace_time_minutes" id="grace_time_minutes" class="form-control @error('grace_time_minutes') is-invalid @enderror" value="{{ old('grace_time_minutes', $shift->grace_time_minutes ?? 10) }}" required>
-        @error('grace_time_minutes')
+        <label for="grace_period_in_minutes">Grace Period for Late Arrival (Minutes) <span class="text-danger">*</span></label>
+        <input type="number" name="grace_period_in_minutes" id="grace_period_in_minutes" class="form-control @error('grace_period_in_minutes') is-invalid @enderror" value="{{ old('grace_period_in_minutes', $shift->grace_period_in_minutes ?? 10) }}" required>
+        @error('grace_period_in_minutes')
             <span class="invalid-feedback">{{ $message }}</span>
         @enderror
     </div>
@@ -55,10 +55,10 @@
 <hr>
 <div class="row">
     <div class="col-md-12 form-group">
-        <label for="weekly_off_days">Weekly Off Days</label>
-        <input type="text" name="weekly_off_days" id="weekly_off_days" class="form-control @error('weekly_off_days') is-invalid @enderror" value="{{ old('weekly_off_days', $shift->weekly_off_days ?? 'Sunday') }}" placeholder="e.g., Sunday,Saturday">
+        <label for="weekly_off">Weekly Off Days</label>
+        <input type="text" name="weekly_off" id="weekly_off" class="form-control @error('weekly_off') is-invalid @enderror" value="{{ old('weekly_off', $shift->weekly_off ?? 'Sunday') }}" placeholder="e.g., Sunday,Saturday">
         <small class="form-text text-muted">Enter off days separated by a comma (e.g., Sunday,Saturday).</small>
-        @error('weekly_off_days')
+        @error('weekly_off')
             <span class="invalid-feedback">{{ $message }}</span>
         @enderror
     </div>
