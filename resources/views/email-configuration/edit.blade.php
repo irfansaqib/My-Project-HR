@@ -28,10 +28,19 @@
                     <label for="username">Username <span class="text-danger">*</span></label>
                     <input type="text" name="username" id="username" class="form-control" value="{{ old('username', $config->username ?? '') }}" required>
                 </div>
+                {{-- ✅ MODIFICATION START: Added input-group wrapper for the password field --}}
                 <div class="col-md-6 form-group">
                     <label for="password">Password <span class="text-danger">*</span></label>
-                    <input type="password" name="password" id="password" class="form-control" value="{{ old('password', $config->password ?? '') }}" required>
+                    <div class="input-group">
+                        <input type="password" name="password" id="password" class="form-control" value="{{ old('password', $config->password ?? '') }}" required>
+                        <div class="input-group-append">
+                            <span class="input-group-text" id="togglePassword" style="cursor: pointer;">
+                                <i class="fas fa-eye"></i>
+                            </span>
+                        </div>
+                    </div>
                 </div>
+                {{-- ✅ MODIFICATION END --}}
             </div>
              <div class="row">
                 <div class="col-md-6 form-group">
@@ -56,9 +65,35 @@
             </div>
             
             <button type="submit" class="btn btn-primary">Save Configuration</button>
-            {{-- ** THIS IS THE NEW TEST BUTTON ** --}}
             <a href="{{ route('email-configuration.test') }}" class="btn btn-info" target="_blank">Send Test Email</a>
         </form>
     </div>
 </div>
 @endsection
+
+{{-- ✅ NEW SCRIPT: Added JavaScript to handle the password toggle functionality --}}
+@push('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const togglePassword = document.querySelector('#togglePassword');
+        const password = document.querySelector('#password');
+        const icon = togglePassword.querySelector('i');
+
+        togglePassword.addEventListener('click', function (e) {
+            // toggle the type attribute
+            const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+            password.setAttribute('type', type);
+            
+            // toggle the eye slash icon
+            if (type === 'password') {
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            } else {
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            }
+        });
+    });
+</script>
+@endpush
+

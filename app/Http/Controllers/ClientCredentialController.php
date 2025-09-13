@@ -16,21 +16,25 @@ class ClientCredentialController extends Controller
     {
         $query = ClientCredential::where('user_id', Auth::id());
 
-        if ($request->has('search') && $request->search != '') {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('company_name', 'LIKE', "%{$search}%")
-                  ->orWhere('user_name', 'LIKE', "%{$search}%")
-                  ->orWhere('login_id', 'LIKE', "%{$search}%")
-                  ->orWhere('portal_url', 'LIKE', "%{$search}%")
-                  ->orWhere('email', 'LIKE', "%{$search}%")
-                  ->orWhere('company_email', 'LIKE', "%{$search}%")
-                  ->orWhere('contact_number', 'LIKE', "%{$search}%");
-            });
+        // Apply filters from the request
+        if ($request->filled('company_name')) {
+            $query->where('company_name', 'LIKE', '%' . $request->company_name . '%');
+        }
+        if ($request->filled('user_name')) {
+            $query->where('user_name', 'LIKE', '%' . $request->user_name . '%');
+        }
+        if ($request->filled('portal_url')) {
+            $query->where('portal_url', 'LIKE', '%' . $request->portal_url . '%');
         }
 
-        $credentials = $query->get();
+        $credentials = $query->latest()->paginate(15);
 
+        // If the request is an AJAX request, return only the table partial
+        if ($request->ajax()) {
+            return view('client-credentials._credentials_table', compact('credentials'))->render();
+        }
+
+        // For regular page loads, return the full view
         return view('client-credentials.index', compact('credentials'));
     }
 
@@ -125,3 +129,4 @@ class ClientCredentialController extends Controller
         return Redirect::route('client-credentials.index')->with('success', 'Credential deleted successfully!');
     }
 }
+

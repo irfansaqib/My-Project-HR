@@ -30,5 +30,6 @@ class ClientCredential extends Model
         'ceo_name',
         'ceo_cnic',
         'contact_number',
+        'remarks', // Added remarks field
     ];
 }

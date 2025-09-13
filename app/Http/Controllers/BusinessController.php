@@ -5,22 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Business;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class BusinessController extends Controller
 {
-    public function __construct()
-    {
-        $this->authorizeResource(Business::class, 'business');
-    }
-
-    /**
-     * THIS IS THE NEW METHOD to display the business profile.
-     */
-    public function show(Business $business)
-    {
-        return view('business.show', compact('business'));
-    }
-
     public function create()
     {
         $this->authorize('create', Business::class);
@@ -30,12 +18,17 @@ class BusinessController extends Controller
     public function store(Request $request)
     {
         $this->authorize('create', Business::class);
+        // ✅ FIX: Corrected all validation field names to match the database
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'business_name' => 'required|string|max:255',
+            'legal_name' => 'nullable|string|max:255',
+            'registration_number' => 'nullable|string|max:255',
+            'ntn_number' => 'nullable|string|max:255',
+            'phone_number' => 'nullable|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'business_type' => 'nullable|string|max:255',
             'address' => 'nullable|string',
-            'phone' => 'nullable|string',
-            'email' => 'nullable|email',
-            'logo' => 'nullable|image|mimes:png,jpg,jpeg|max:2048',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
         if ($request->hasFile('logo')) {
@@ -43,35 +36,52 @@ class BusinessController extends Controller
         }
 
         $business = Business::create($validated);
+        Auth::user()->update(['business_id' => $business->id]);
 
-        $user = Auth::user();
-        $user->business_id = $business->id;
-        $user->save();
-
-        return redirect()->route('dashboard')->with('success', 'Business details saved successfully!');
+        return redirect()->route('dashboard')->with('success', 'Business profile created successfully.');
+    }
+    
+    public function show(Business $business)
+    {
+        $this->authorize('view', $business);
+        return view('business.show', compact('business'));
     }
 
     public function edit(Business $business)
     {
+        $this->authorize('update', $business);
         return view('business.edit', compact('business'));
     }
 
     public function update(Request $request, Business $business)
     {
+        $this->authorize('update', $business);
+
+        // ✅ FIX: Corrected all validation field names to match the database
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'business_name' => 'required|string|max:255',
+            'legal_name' => 'nullable|string|max:255',
+            'registration_number' => 'nullable|string|max:255',
+            'ntn_number' => 'nullable|string|max:255',
+            'phone_number' => 'nullable|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'business_type' => 'nullable|string|max:255',
             'address' => 'nullable|string',
-            'phone' => 'nullable|string',
-            'email' => 'nullable|email',
-            'logo' => 'nullable|image|mimes:png,jpg,jpeg|max:2048',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
+        
+        // ✅ FIX: Added all new fields to the data being saved
+        $businessData = $request->only(['business_name', 'legal_name', 'registration_number', 'ntn_number', 'phone_number', 'email', 'business_type', 'address']);
 
         if ($request->hasFile('logo')) {
-            $validated['logo_path'] = $request->file('logo')->store('logos', 'public');
+            if ($business->logo_path) {
+                Storage::disk('public')->delete($business->logo_path);
+            }
+            $businessData['logo_path'] = $request->file('logo')->store('logos', 'public');
         }
 
-        $business->update($validated);
+        $business->update($businessData);
 
-        return redirect()->route('business.show', $business)->with('success', 'Business details updated successfully!');
+        return redirect()->route('business.show', $business)->with('success', 'Business profile updated successfully.');
     }
 }

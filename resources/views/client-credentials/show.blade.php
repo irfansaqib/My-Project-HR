@@ -67,6 +67,15 @@
                 </dl>
             </div>
         </div>
+
+        <hr>
+        <div class="row">
+            <div class="col-12">
+                <h4>Remarks</h4>
+                <p>{{ $credential->remarks ?? 'No remarks provided.' }}</p>
+            </div>
+        </div>
     </div>
 </div>
 @endsection
+
