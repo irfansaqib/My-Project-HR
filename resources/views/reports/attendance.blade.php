@@ -79,7 +79,8 @@
                             </td>
                             <td>{{ $attendance->check_in ? \Carbon\Carbon::parse($attendance->check_in)->format('h:i A') : 'N/A' }}</td>
                             <td>{{ $attendance->check_out ? \Carbon\Carbon::parse($attendance->check_out)->format('h:i A') : 'N/A' }}</td>
-                            <td>{{ $attendance->work_duration }}</td>
+                            {{-- ✅ DEFINITIVE FIX: Use {!! !!} to render the intelligent status messages from the model. --}}
+                            <td>{!! $attendance->work_duration !!}</td>
                         </tr>
                     @empty
                         <tr>
@@ -96,3 +97,4 @@
 @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.13.14/dist/js/bootstrap-select.min.js"></script>
 @endpush
+

@@ -26,22 +26,15 @@ class ReportController extends Controller
         if ($request->filled('date_from')) $query->where('date', '>=', $request->date_from);
         if ($request->filled('date_to')) $query->where('date', '<=', $request->date_to);
 
-        // ✅ REMOVED the stray 'g' from the line before this one
-        $attendances = $query->orderBy('date', 'desc')->get()->map(function ($attendance) {
-            if ($attendance->check_in && $attendance->check_out) {
-                $checkIn = Carbon::parse($attendance->check_in);
-                $checkOut = Carbon::parse($attendance->check_out);
-                if ($checkOut->lessThan($checkIn)) $checkOut->addDay();
-                $duration = $checkIn->diff($checkOut);
-                $attendance->work_duration = $duration->format('%h h %i m');
-            } else {
-                $attendance->work_duration = 'N/A';
-            }
-            return $attendance;
-        });
+        // ✅ DEFINITIVE FIX: The old, incorrect calculation logic has been removed.
+        // The view will now automatically use the intelligent `getWorkDurationAttribute`
+        // from the Attendance model, ensuring consistency across the application.
+        $attendances = $query->orderBy('date', 'desc')->get();
         
         return view('reports.attendance', compact('attendances', 'employees', 'shifts'));
     }
+
+    // --- NO CHANGES HAVE BEEN MADE TO THE FUNCTIONS BELOW ---
 
     public function attendanceCalendar()
     {
@@ -122,3 +115,4 @@ class ReportController extends Controller
         return response()->json($events);
     }
 }
+

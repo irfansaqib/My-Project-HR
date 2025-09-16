@@ -29,9 +29,7 @@
                         </tr>
                     </thead>
                     <tbody id="attendance-tbody">
-                        <tr>
-                            <td colspan="4" class="text-center text-muted">Select a date to load employees.</td>
-                        </tr>
+                        <tr><td colspan="4" class="text-center text-muted">Select a date to load employees.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -49,16 +47,29 @@
         const formDateInput = $('#form_date');
         const tbody = $('#attendance-tbody');
 
-        tbody.on('input', '.check-in', function() {
-            const checkInValue = $(this).val();
-            const checkOutInput = $(this).closest('tr').find('.check-out');
-            
-            if (checkInValue) {
-                checkOutInput.prop('disabled', false);
+        function toggleRowInputs(row) {
+            const status = row.find('.status-select').val();
+            const checkInInput = row.find('.check-in');
+            const checkOutInput = row.find('.check-out');
+
+            if (status === 'leave' || status === 'absent') {
+                checkInInput.prop('disabled', true).val('');
+                checkOutInput.prop('disabled', true).val('');
             } else {
-                checkOutInput.prop('disabled', true);
-                checkOutInput.val('');
+                checkInInput.prop('disabled', false);
+                checkOutInput.prop('disabled', !checkInInput.val());
+                 if (!checkInInput.val()) {
+                    checkOutInput.val('');
+                }
             }
+        }
+
+        tbody.on('change', '.status-select', function() {
+            toggleRowInputs($(this).closest('tr'));
+        });
+
+        tbody.on('input', '.check-in', function() {
+            toggleRowInputs($(this).closest('tr'));
         });
 
         function fetchAttendanceData() {
@@ -68,7 +79,6 @@
 
             $.ajax({
                 url: `{{ route('api.employees-for-attendance') }}`,
-                type: 'GET',
                 data: { date: selectedDate },
                 success: function(employees) {
                     tbody.html('');
@@ -81,11 +91,7 @@
                         const attendance = employee.attendances.length > 0 ? employee.attendances[0] : {};
                         const checkInValue = attendance.check_in ? attendance.check_in.substring(0, 5) : '';
                         const checkOutValue = attendance.check_out ? attendance.check_out.substring(0, 5) : '';
-                        
-                        // ** NEW LOGIC TO DISABLE SAVED FIELDS **
-                        const isReadOnly = attendance.id ? 'readonly' : '';
-                        const isSelectDisabled = attendance.id ? 'disabled' : '';
-                        const isCheckoutDisabled = !checkInValue || checkOutValue ? 'disabled' : '';
+                        const status = attendance.status || 'absent';
 
                         const row = `
                             <tr>
@@ -94,27 +100,20 @@
                                     <input type="hidden" name="attendances[${index}][employee_id]" value="${employee.id}">
                                 </td>
                                 <td>
-                                    <select name="attendances[${index}][status]" class="form-control status-select" ${isSelectDisabled}>
-                                        <option value="present" ${attendance.status === 'present' ? 'selected' : ''}>Present</option>
-                                        <option value="absent" ${!attendance.status || attendance.status === 'absent' ? 'selected' : ''}>Absent</option>
-                                        <option value="leave" ${attendance.status === 'leave' ? 'selected' : ''}>Leave</option>
-                                        <option value="half-day" ${attendance.status === 'half-day' ? 'selected' : ''}>Half-day</option>
+                                    <select name="attendances[${index}][status]" class="form-control status-select">
+                                        <option value="present" ${status === 'present' ? 'selected' : ''}>Present</option>
+                                        <option value="absent" ${status === 'absent' ? 'selected' : ''}>Absent</option>
+                                        <option value="leave" ${status === 'leave' ? 'selected' : ''}>Leave</option>
+                                        <option value="half-day" ${status === 'half-day' ? 'selected' : ''}>Half-day</option>
                                     </select>
                                 </td>
-                                <td>
-                                    <input type="time" name="attendances[${index}][check_in]" class="form-control check-in" value="${checkInValue}" ${isReadOnly}>
-                                </td>
-                                <td>
-                                    <input type="time" name="attendances[${index}][check_out]" class="form-control check-out" value="${checkOutValue}" ${isCheckoutDisabled}>
-                                </td>
+                                <td><input type="time" name="attendances[${index}][check_in]" class="form-control check-in" value="${checkInValue}"></td>
+                                <td><input type="time" name="attendances[${index}][check_out]" class="form-control check-out" value="${checkOutValue}"></td>
                             </tr>
                         `;
                         tbody.append(row);
+                        toggleRowInputs(tbody.find('tr').last());
                     });
-                },
-                error: function(xhr) {
-                    tbody.html(`<tr><td colspan="4" class="text-center text-danger">Failed to load data. Please check server logs for details.</td></tr>`);
-                    console.error('Error:', xhr.responseText);
                 }
             });
         }
@@ -124,3 +123,4 @@
     });
 </script>
 @endpush
+

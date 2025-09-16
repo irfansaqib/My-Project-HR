@@ -29,7 +29,8 @@
                     <select name="shift_id" id="shift_id" class="form-control" required>
                         <option value="">-- Select a Shift --</option>
                         @foreach($shifts as $shift)
-                            <option value="{{ $shift->id }}">{{ $shift->shift_name }} ({{ \Carbon\Carbon::parse($shift->start_time)->format('h:i A') }} - {{ \Carbon\Carbon::parse($shift->end_time)->format('h:i A') }})</option>
+                            {{-- ✅ DEFINITIVE FIX: Changed 'shift_name' to 'name' to correctly display the shift name. --}}
+                            <option value="{{ $shift->id }}">{{ $shift->name }} ({{ \Carbon\Carbon::parse($shift->start_time)->format('h:i A') }} - {{ \Carbon\Carbon::parse($shift->end_time)->format('h:i A') }})</option>
                         @endforeach
                     </select>
                 </div>
@@ -52,4 +53,9 @@
 
 @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.13.14/dist/js/bootstrap-select.min.js"></script>
+    <script>
+        $(document).ready(function(){
+            $('.selectpicker').selectpicker();
+        });
+    </script>
 @endpush

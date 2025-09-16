@@ -9,7 +9,8 @@
                 <div class="text-center">
                     <img class="profile-user-img img-fluid" style="width: 300px; height: 300px; object-fit: contain; border: none; padding: 0;" src="{{ $business->logo_path ? asset('storage/' . $business->logo_path) : 'https://via.placeholder.com/300' }}" alt="Business logo">
                 </div>
-                <h3 class="profile-username text-center">{{ $business->name }}</h3>
+                {{-- ✅ DEFINITIVE FIX: Corrected field to business_name --}}
+                <h3 class="profile-username text-center">{{ $business->business_name }}</h3>
                 <p class="text-muted text-center">{{ $business->business_type ?? 'N/A' }}</p>
             </div>
         </div>
@@ -33,7 +34,7 @@
             </div>
             <div class="card-footer">
                 <a href="{{ route('business.edit', $business) }}" class="btn btn-primary">Edit Details</a>
-                {{-- THIS BUTTON IS NOW ADDED BACK AND WILL WORK --}}
+                {{-- ✅ DEFINITIVE FIX: Restored the 'Manage Bank Accounts' button. --}}
                 <a href="{{ route('business-bank-accounts.index') }}" class="btn btn-info">Manage Bank Accounts</a>
             </div>
         </div>

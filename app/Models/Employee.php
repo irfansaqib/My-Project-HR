@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Carbon\Carbon;
 
 class Employee extends Model
 {
@@ -13,6 +14,7 @@ class Employee extends Model
 
     protected $guarded = [];
 
+    // ... existing relationships from your file ...
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
@@ -67,11 +69,27 @@ class Employee extends Model
         return $this->hasMany(EmployeeShiftAssignment::class);
     }
 
-    /**
-     * Get the attendance records for the employee.
-     */
     public function attendances()
     {
         return $this->hasMany(Attendance::class);
     }
+
+    /**
+     * ✅ DEFINITIVE FIX: Added a safe helper function to get the active shift for a given date.
+     * This uses your existing shiftAssignments relationship.
+     */
+    public function getActiveShiftForDate(Carbon $date)
+    {
+        $assignment = $this->shiftAssignments()
+            ->where('start_date', '<=', $date->format('Y-m-d'))
+            ->where(function ($query) use ($date) {
+                $query->where('end_date', '>=', $date->format('Y-m-d'))
+                      ->orWhereNull('end_date');
+            })
+            ->latest('start_date') // Get the most recent assignment if there are overlaps
+            ->first();
+
+        return $assignment ? $assignment->shift : null;
+    }
 }
+

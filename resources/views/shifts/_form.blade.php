@@ -15,7 +15,20 @@
         @enderror
     </div>
 </div>
+
+{{-- ✅ DEFINITIVE FIX: This is the new field that was missing before. --}}
+<div class="row">
+    <div class="col-md-6 form-group">
+        <label for="auto_deduct_minutes">Auto Checkout Deduction (Minutes)</label>
+        <input type="number" name="auto_deduct_minutes" id="auto_deduct_minutes" class="form-control @error('auto_deduct_minutes') is-invalid @enderror" value="{{ old('auto_deduct_minutes', $shift->auto_deduct_minutes ?? 60) }}" required>
+        <small class="form-text text-muted">Deduct this many minutes if an employee forgets to check out.</small>
+        @error('auto_deduct_minutes')
+            <span class="invalid-feedback">{{ $message }}</span>
+        @enderror
+    </div>
+</div>
 <hr>
+
 <div class="row">
     <div class="col-md-6">
         <h5 class="mb-3">Shift Timings</h5>
@@ -66,3 +79,4 @@
 
 <button type="submit" class="btn btn-primary">{{ $buttonText ?? 'Submit' }}</button>
 <a href="{{ route('shifts.index') }}" class="btn btn-secondary">Cancel</a>
+

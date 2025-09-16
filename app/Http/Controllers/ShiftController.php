@@ -21,14 +21,15 @@ class ShiftController extends Controller
 
     public function store(Request $request)
     {
-        // ** UPDATED VALIDATION LOGIC **
+        // ✅ DEFINITIVE FIX: Added validation for the new field.
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'start_time' => 'required|date_format:H:i',
-            'end_time' => ['required', 'date_format:H:i'], // Custom rule below
+            'end_time' => ['required', 'date_format:H:i'],
             'grace_period_in_minutes' => 'required|integer|min:0',
+            'auto_deduct_minutes' => 'required|integer|min:0',
             'punch_in_window_start' => 'required|date_format:H:i',
-            'punch_in_window_end' => ['required', 'date_format:H:i'], // Custom rule below
+            'punch_in_window_end' => ['required', 'date_format:H:i'],
             'weekly_off' => 'nullable|string',
         ]);
 
@@ -59,14 +60,15 @@ class ShiftController extends Controller
             abort(403);
         }
 
-        // ** UPDATED VALIDATION LOGIC **
+        // ✅ DEFINITIVE FIX: Added validation for the new field.
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'start_time' => 'required|date_format:H:i',
-            'end_time' => ['required', 'date_format:H:i'], // Custom rule below
+            'end_time' => ['required', 'date_format:H:i'],
             'grace_period_in_minutes' => 'required|integer|min:0',
+            'auto_deduct_minutes' => 'required|integer|min:0',
             'punch_in_window_start' => 'required|date_format:H:i',
-            'punch_in_window_end' => ['required', 'date_format:H:i'], // Custom rule below
+            'punch_in_window_end' => ['required', 'date_format:H:i'],
             'weekly_off' => 'nullable|string',
         ]);
 
@@ -86,3 +88,4 @@ class ShiftController extends Controller
         return redirect()->route('shifts.index')->with('success', 'Shift deleted successfully.');
     }
 }
+
