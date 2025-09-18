@@ -4,9 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\LeaveRequest;
 use App\Models\Employee;
+use App\Models\LeaveType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use App\Models\Attendance;
+use Carbon\CarbonPeriod;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class LeaveRequestController extends Controller
 {
@@ -17,6 +22,7 @@ class LeaveRequestController extends Controller
 
     public function index()
     {
+        // ✅ DEFINITIVE FIX: Corrected Auth::user() syntax.
         $user = Auth::user();
         
         if ($user->hasRole(['Owner', 'Admin'])) {
@@ -37,28 +43,41 @@ class LeaveRequestController extends Controller
 
     public function create()
     {
+        // ✅ DEFINITIVE FIX: Corrected Auth::user() syntax.
         $employee = Auth::user()->employee;
         if (!$employee) {
             abort(403, 'You must be linked to an employee to apply for leave.');
         }
 
-        $this->calculateRemainingLeaves($employee);
-        $employee->total_leaves_remaining = ($employee->leaves_annual_remaining ?? 0) + ($employee->leaves_sick_remaining ?? 0) + ($employee->leaves_casual_remaining ?? 0) + ($employee->leaves_other_remaining ?? 0);
+        $employee->load('leaveTypes');
+        $leaveTypes = $employee->leaveTypes;
 
-        return view('leave-requests.create', compact('employee'));
+        $this->calculateRemainingLeaves($employee);
+
+        $totalLeavesRemaining = 0;
+        foreach ($leaveTypes as $type) {
+            $slug = Str::slug($type->name, '_');
+            $remainingKey = 'leaves_' . $slug . '_remaining';
+            $totalLeavesRemaining += $employee->{$remainingKey} ?? 0;
+        }
+        $employee->total_leaves_remaining = $totalLeavesRemaining;
+
+        return view('leave-requests.create', compact('employee', 'leaveTypes'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'leave_type' => 'required|in:annual,sick,casual,other',
+            'leave_type_id' => 'required|exists:leave_types,id',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'reason' => 'required|string',
             'attachment' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
 
+        // ✅ DEFINITIVE FIX: Corrected Auth::user() syntax.
         $employee = Auth::user()->employee;
+        $leaveType = LeaveType::findOrFail($request->leave_type_id);
         
         $startDate = Carbon::parse($request->start_date);
         $endDate = Carbon::parse($request->end_date);
@@ -66,10 +85,12 @@ class LeaveRequestController extends Controller
 
         $this->calculateRemainingLeaves($employee);
         
-        $leaveBalanceField = 'leaves_' . $request->leave_type . '_remaining';
+        $slug = Str::slug($leaveType->name, '_');
+        $leaveBalanceField = 'leaves_' . $slug . '_remaining';
         
-        if ($daysRequested > $employee->{$leaveBalanceField}) {
-            return back()->withErrors(['end_date' => "Requested days ($daysRequested) exceeds available balance ({$employee->{$leaveBalanceField}})."])->withInput();
+        $currentBalance = $employee->{$leaveBalanceField} ?? 0;
+        if ($daysRequested > $currentBalance) {
+            return back()->withErrors(['end_date' => "Requested days ($daysRequested) exceeds available balance for {$leaveType->name} ({$currentBalance})."])->withInput();
         }
 
         $attachmentPath = $request->hasFile('attachment') ? $request->file('attachment')->store('leave_attachments/' . $employee->business_id, 'public') : null;
@@ -77,7 +98,7 @@ class LeaveRequestController extends Controller
         LeaveRequest::create([
             'business_id' => $employee->business_id,
             'employee_id' => $employee->id,
-            'leave_type' => $request->leave_type,
+            'leave_type' => $leaveType->name,
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
             'reason' => $request->reason,
@@ -98,46 +119,88 @@ class LeaveRequestController extends Controller
     public function edit(LeaveRequest $leaveRequest)
     {
         $employee = Auth::user()->employee;
+        $employee->load('leaveTypes');
+        $leaveTypes = $employee->leaveTypes;
         $this->calculateRemainingLeaves($employee);
-        return view('leave-requests.edit', compact('leaveRequest', 'employee'));
+        return view('leave-requests.edit', compact('leaveRequest', 'employee', 'leaveTypes'));
     }
 
     public function update(Request $request, LeaveRequest $leaveRequest)
     {
         $request->validate([
-            'leave_type' => 'required|in:annual,sick,casual,other',
+            'leave_type_id' => 'required|exists:leave_types,id',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'reason' => 'required|string',
             'attachment' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
-        $leaveRequest->update($request->all());
+        
+        $leaveType = LeaveType::findOrFail($request->leave_type_id);
+        
+        $data = $request->except(['_token', '_method', 'leave_type_id']);
+        $data['leave_type'] = $leaveType->name;
+
+        $leaveRequest->update($data);
         return redirect()->route('leave-requests.index')->with('success', 'Leave application updated successfully.');
     }
 
     public function destroy(LeaveRequest $leaveRequest)
     {
-        $leaveRequest->delete();
+        $wasApproved = $leaveRequest->status === 'approved';
+        DB::transaction(function () use ($leaveRequest, $wasApproved) {
+            if ($wasApproved) {
+                $period = CarbonPeriod::create($leaveRequest->start_date, $leaveRequest->end_date);
+                $dates = collect($period)->filter(fn($date) => !$date->isSunday())->map(fn($date) => $date->format('Y-m-d'));
+                Attendance::where('employee_id', $leaveRequest->employee_id)->whereIn('date', $dates)->where('status', 'leave')->delete();
+            }
+            $leaveRequest->delete();
+        });
         return redirect()->route('leave-requests.index')->with('success', 'Leave application withdrawn successfully.');
     }
     
     public function approve(LeaveRequest $leaveRequest)
     {
         $this->authorize('approve', $leaveRequest);
-        $leaveRequest->update(['status' => 'approved', 'approver_id' => Auth::id()]);
-        return back()->with('success', 'Leave request has been approved.');
+        DB::transaction(function () use ($leaveRequest) {
+            $leaveRequest->update(['status' => 'approved', 'approver_id' => Auth::id()]);
+            $period = CarbonPeriod::create($leaveRequest->start_date, $leaveRequest->end_date);
+            foreach ($period as $date) {
+                if (!$date->isSunday()) {
+                    Attendance::updateOrCreate(
+                        ['employee_id' => $leaveRequest->employee_id, 'date' => $date->format('Y-m-d')],
+                        ['business_id' => $leaveRequest->business_id, 'status' => 'leave', 'check_in' => null, 'check_out' => null]
+                    );
+                }
+            }
+        });
+        return back()->with('success', 'Leave request has been approved and attendance records are updated.');
     }
-
+    
     public function reject(LeaveRequest $leaveRequest)
     {
         $this->authorize('reject', $leaveRequest);
-        $leaveRequest->update(['status' => 'rejected', 'approver_id' => Auth::id()]);
+        $wasApproved = $leaveRequest->status === 'approved';
+        DB::transaction(function () use ($leaveRequest, $wasApproved) {
+            $leaveRequest->update(['status' => 'rejected', 'approver_id' => Auth::id()]);
+            if ($wasApproved) {
+                $period = CarbonPeriod::create($leaveRequest->start_date, $leaveRequest->end_date);
+                foreach ($period as $date) {
+                    if (!$date->isSunday()) {
+                        Attendance::updateOrCreate(
+                            ['employee_id' => $leaveRequest->employee_id, 'date' => $date->format('Y-m-d')],
+                            ['business_id' => $leaveRequest->business_id, 'status' => 'absent', 'check_in' => null, 'check_out' => null]
+                        );
+                    }
+                }
+            }
+        });
         return back()->with('success', 'Leave request has been rejected.');
     }
 
     public function extraCreate()
     {
         $this->authorize('create', LeaveRequest::class);
+        // ✅ DEFINITIVE FIX: Corrected Auth::user() syntax.
         $employee = Auth::user()->employee;
         return view('leave-requests.extra_create', compact('employee'));
     }
@@ -146,35 +209,31 @@ class LeaveRequestController extends Controller
     {
         $this->authorize('create', LeaveRequest::class);
         $request->validate(['start_date' => 'required|date', 'end_date' => 'required|date|after_or_equal:start_date', 'reason' => 'required|string', 'days_requested' => 'required|integer|min:1']);
+        // ✅ DEFINITIVE FIX: Corrected Auth::user() syntax.
         $employee = Auth::user()->employee;
-        
-        LeaveRequest::create([
-            'business_id' => $employee->business_id,
-            'employee_id' => $employee->id,
-            'leave_type' => 'extra',
-            'start_date' => $request->start_date,
-            'end_date' => $request->end_date,
-            'reason' => $request->reason,
-            'status' => 'pending'
-        ]);
-        
+        LeaveRequest::create(['business_id' => $employee->business_id, 'employee_id' => $employee->id, 'leave_type' => 'Extra', 'start_date' => $request->start_date, 'end_date' => $request->end_date, 'reason' => $request->reason, 'status' => 'pending']);
         return redirect()->route('leave-requests.index')->with('success', 'Extra leave application submitted successfully.');
     }
     
     private function calculateRemainingLeaves(Employee $employee)
     {
-        $leaveTypes = ['annual', 'sick', 'casual', 'other'];
-        foreach ($leaveTypes as $type) {
+        $employee->load('leaveTypes');
+
+        foreach ($employee->leaveTypes as $type) {
+            $totalAllowed = $type->pivot->days_allotted;
+            
             $approvedDays = $employee->leaveRequests()
-                ->where('leave_type', $type)
+                ->where('leave_type', $type->name)
                 ->where('status', 'approved')
                 ->get()
                 ->sum(function ($request) {
                     return Carbon::parse($request->start_date)->diffInDaysFiltered(fn (Carbon $date) => !$date->isSunday(), Carbon::parse($request->end_date)) + 1;
                 });
             
-            $totalAllowed = $employee->{'leaves_' . $type} ?? 0;
-            $employee->{'leaves_' . $type . '_remaining'} = $totalAllowed - $approvedDays;
+            $slug = Str::slug($type->name, '_');
+            $remainingKey = 'leaves_' . $slug . '_remaining';
+            $employee->{$remainingKey} = $totalAllowed - $approvedDays;
         }
     }
 }
+

@@ -1,30 +1,44 @@
 <div class="card-body">
     <div class="row">
         <div class="col-md-12 form-group">
-            <label for="leave_type">Leave Type <span class="text-danger">*</span></label>
-            <select name="leave_type" id="leave_type" class="form-control" required>
-                <option value="">Select a Leave Type</option>
-                <option value="annual" @if(old('leave_type', $leaveRequest->leave_type ?? '') == 'annual') selected @endif>Annual ({{ $employee->leaves_annual_remaining ?? $employee->leaves_annual }} remaining)</option>
-                <option value="sick" @if(old('leave_type', $leaveRequest->leave_type ?? '') == 'sick') selected @endif>Sick ({{ $employee->leaves_sick_remaining ?? $employee->leaves_sick }} remaining)</option>
-                <option value="casual" @if(old('leave_type', $leaveRequest->leave_type ?? '') == 'casual') selected @endif>Casual ({{ $employee->leaves_casual_remaining ?? $employee->leaves_casual }} remaining)</option>
-                <option value="other" @if(old('leave_type', $leaveRequest->leave_type ?? '') == 'other') selected @endif>Other ({{ $employee->leaves_other_remaining ?? $employee->leaves_other }} remaining)</option>
+            <label for="leave_type_id">Leave Type <span class="text-danger">*</span></label>
+            {{-- ✅ DEFINITIVE FIX: This dropdown is now built from the employee's specific allotted leaves. --}}
+            <select name="leave_type_id" id="leave_type_id" class="form-control" required>
+                <option value="">Select an Allotted Leave Type</option>
+                {{-- Loop through the LeaveType models associated with the employee --}}
+                @foreach($leaveTypes as $type)
+                    @php
+                        // Get the remaining balance calculated in the controller.
+                        $slug = Illuminate\Support\Str::slug($type->name, '_');
+                        $remainingKey = 'leaves_' . $slug . '_remaining';
+                        $remaining = $employee->{$remainingKey} ?? 0;
+                        // Check if this option should be selected (for edit forms).
+                        $isSelected = old('leave_type_id', optional($leaveRequest ?? null)->leave_type) == $type->name;
+                    @endphp
+                    {{-- Only show leave types that have been allotted days --}}
+                    @if($type->pivot->days_allotted > 0)
+                        <option value="{{ $type->id }}" @if($isSelected) selected @endif>
+                            {{ $type->name }} ({{ $remaining }} remaining)
+                        </option>
+                    @endif
+                @endforeach
             </select>
-            @error('leave_type') <div class="text-danger mt-1">{{ $message }}</div> @enderror
+            @error('leave_type_id') <div class="text-danger mt-1">{{ $message }}</div> @enderror
         </div>
     </div>
     <div class="row">
         <div class="col-md-4 form-group">
             <label for="start_date">Start Date <span class="text-danger">*</span></label>
-            <input type="date" name="start_date" class="form-control" id="start_date" value="{{ old('start_date', $leaveRequest->start_date ?? '') }}" required>
+            <input type="date" name="start_date" class="form-control" id="start_date" value="{{ old('start_date', isset($leaveRequest) ? \Carbon\Carbon::parse($leaveRequest->start_date)->format('Y-m-d') : '') }}" required>
             @error('start_date') <div class="text-danger mt-1">{{ $message }}</div> @enderror
         </div>
         <div class="col-md-4 form-group">
             <label for="end_date">End Date <span class="text-danger">*</span></label>
-            <input type="date" name="end_date" class="form-control" id="end_date" value="{{ old('end_date', $leaveRequest->end_date ?? '') }}" required>
+            <input type="date" name="end_date" class="form-control" id="end_date" value="{{ old('end_date', isset($leaveRequest) ? \Carbon\Carbon::parse($leaveRequest->end_date)->format('Y-m-d') : '') }}" required>
             @error('end_date') <div class="text-danger mt-1">{{ $message }}</div> @enderror
         </div>
         <div class="col-md-4 form-group">
-            <label for="total_days">Total Days</label>
+            <label for="total_days">Total Days (excluding Sundays)</label>
             <input type="text" class="form-control" id="total_days" readonly>
         </div>
     </div>
@@ -51,23 +65,35 @@
         const totalDaysInput = document.getElementById('total_days');
 
         function calculateDays() {
-            const startDate = new Date(startDateInput.value);
-            const endDate = new Date(endDateInput.value);
-
-            if (startDateInput.value && endDateInput.value && endDate >= startDate) {
-                const timeDiff = endDate.getTime() - startDate.getTime();
-                const dayDiff = (timeDiff / (1000 * 3600 * 24)) + 1;
-                totalDaysInput.value = dayDiff;
-            } else {
+            if (!startDateInput.value || !endDateInput.value) {
                 totalDaysInput.value = 0;
+                return;
             }
+
+            let startDate = new Date(startDateInput.value);
+            let endDate = new Date(endDateInput.value);
+
+            if (endDate < startDate) {
+                totalDaysInput.value = 0;
+                return;
+            }
+
+            let count = 0;
+            const curDate = new Date(startDate.getTime());
+            while (curDate <= endDate) {
+                const dayOfWeek = curDate.getDay();
+                if (dayOfWeek !== 0) { // 0 = Sunday
+                    count++;
+                }
+                curDate.setDate(curDate.getDate() + 1);
+            }
+            totalDaysInput.value = count;
         }
 
         startDateInput.addEventListener('change', calculateDays);
         endDateInput.addEventListener('change', calculateDays);
-
-        // Calculate on page load for the edit form
-        calculateDays();
+        calculateDays(); // Initial calculation
     });
 </script>
 @endpush
+

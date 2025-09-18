@@ -77,7 +77,7 @@
 
                     @if(Auth::user()->business)
                         <li class="nav-item">
-                            <a href="{{ route('business.edit', Auth::user()->business->id) }}" class="nav-link {{ request()->routeIs('business.edit') ? 'active' : '' }}">
+                            <a href="{{ route('business.show', Auth::user()->business->id) }}" class="nav-link {{ request()->routeIs('business.show') || request()->routeIs('business.edit') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-building"></i>
                                 <p>Business Profile</p>
                             </a>
@@ -123,13 +123,6 @@
                     </li>
                     @endhasanyrole
 
-                    <li class="nav-item">
-                        <a href="{{ route('client-credentials.index') }}" class="nav-link {{ request()->routeIs('client-credentials.*') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-key"></i>
-                            <p>Client Credentials</p>
-                        </a>
-                    </li>
-
                     <li class="nav-item has-treeview {{ request()->routeIs(['employees.*', 'designations.*', 'departments.*']) ? 'menu-open' : '' }}">
                         <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-users"></i>
@@ -165,8 +158,11 @@
                              <li class="nav-item"><a href="{{ route('attendances.index') }}" class="nav-link {{ request()->routeIs('attendances.index') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Daily Attendance</p></a></li>
                              <li class="nav-item"><a href="{{ route('attendances.bulk.create') }}" class="nav-link {{ request()->routeIs('attendances.bulk.create') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Bulk Mark Attendance</p></a></li>
                              <li class="nav-item"><a href="{{ route('shifts.index') }}" class="nav-link {{ request()->routeIs('shifts.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Work Shifts</p></a></li>
+                             {{-- ✅ DEFINITIVE FIX: This is the missing link that has been restored. --}}
+                             <li class="nav-item"><a href="{{ route('shift-assignments.create') }}" class="nav-link {{ request()->routeIs('shift-assignments.create') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Assign Employee Shifts</p></a></li>
                              <li class="nav-item"><a href="{{ route('leave-requests.index') }}" class="nav-link {{ request()->routeIs('leave-requests.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Leave Applications</p></a></li>
                              <li class="nav-item"><a href="{{ route('leave-types.index') }}" class="nav-link {{ request()->routeIs('leave-types.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Leave Types</p></a></li>
+                             <li class="nav-item"><a href="{{ route('holidays.index') }}" class="nav-link {{ request()->routeIs('holidays.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Holidays</p></a></li>
                         </ul>
                     </li>
                     <li class="nav-item has-treeview {{ request()->routeIs(['salary-components.*', 'salaries.*', 'tax-rates.*', 'payrolls.*']) ? 'menu-open' : '' }}">
@@ -226,3 +222,4 @@
 @stack('scripts')
 </body>
 </html>
+

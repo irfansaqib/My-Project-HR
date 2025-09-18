@@ -61,6 +61,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('client-credentials', ClientCredentialController::class);
     Route::resource('leave-types', LeaveTypeController::class);
     Route::resource('leave-applications', LeaveRequestController::class)->names('leave-requests');
+    
+    // ✅ DEFINITIVE FIX: Added routes for the extra leave feature.
+    Route::get('leave-requests/extra/create', [LeaveRequestController::class, 'extraCreate'])->name('leave-requests.extra-create');
+    Route::post('leave-requests/extra', [LeaveRequestController::class, 'extraStore'])->name('leave-requests.extra-store');
+
     Route::resource('payrolls', PayrollController::class)->except(['show', 'edit', 'update', 'create']);
     Route::resource('salary-components', SalaryComponentController::class);
     Route::resource('shifts', ShiftController::class);

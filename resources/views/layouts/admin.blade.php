@@ -149,22 +149,57 @@
                             </li>
                         </ul>
                     </li>
-                    <li class="nav-item has-treeview {{ request()->routeIs(['attendances.*', 'shifts.*', 'shift-assignments.*', 'holidays.*', 'leave-types.*', 'leave-requests.*']) ? 'menu-open' : '' }}">
+                    
+                    <!-- Menu for Employees -->
+                    @if(Auth::user()->employee)
+                    <li class="nav-item has-treeview {{ request()->routeIs(['leave-requests.create', 'leave-requests.index', 'leave-requests.show', 'leave-requests.extra-create']) && Auth::user()->employee ? 'menu-open' : '' }}">
+                        <a href="#" class="nav-link">
+                            <i class="nav-icon fas fa-user-clock"></i>
+                            <p>My Leave Portal <i class="right fas fa-angle-left"></i></p>
+                        </a>
+                        <ul class="nav nav-treeview">
+                             <li class="nav-item">
+                                <a href="{{ route('leave-requests.create') }}" class="nav-link {{ request()->routeIs('leave-requests.create') ? 'active' : '' }}">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Apply for Leave</p>
+                                </a>
+                             </li>
+                             <li class="nav-item">
+                                <a href="{{ route('leave-requests.index') }}" class="nav-link {{ request()->routeIs('leave-requests.index', 'leave-requests.show') ? 'active' : '' }}">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>My Applications</p>
+                                </a>
+                             </li>
+                             <li class="nav-item">
+                                <a href="{{ route('leave-requests.extra-create') }}" class="nav-link {{ request()->routeIs('leave-requests.extra-create') ? 'active' : '' }}">
+                                    <i class="far fa-circle nav-icon text-warning"></i>
+                                    <p>Request Extra Leave</p>
+                                </a>
+                             </li>
+                        </ul>
+                    </li>
+                    @endif
+
+                    <!-- Menu for Admins & Owners -->
+                    @hasanyrole('Owner|Admin')
+                    <li class="nav-item has-treeview {{ request()->routeIs(['attendances.*', 'shifts.*', 'shift-assignments.*', 'holidays.*', 'leave-types.*', 'leave-requests.index']) ? 'menu-open' : '' }}">
                         <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-calendar-alt"></i>
-                            <p>Leave & Attendance <i class="right fas fa-angle-left"></i></p>
+                            <p>Leave Management <i class="right fas fa-angle-left"></i></p>
                         </a>
                         <ul class="nav nav-treeview">
                              <li class="nav-item"><a href="{{ route('attendances.index') }}" class="nav-link {{ request()->routeIs('attendances.index') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Daily Attendance</p></a></li>
                              <li class="nav-item"><a href="{{ route('attendances.bulk.create') }}" class="nav-link {{ request()->routeIs('attendances.bulk.create') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Bulk Mark Attendance</p></a></li>
                              <li class="nav-item"><a href="{{ route('shifts.index') }}" class="nav-link {{ request()->routeIs('shifts.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Work Shifts</p></a></li>
-                             {{-- ✅ DEFINITIVE FIX: This is the missing link that has been restored. --}}
                              <li class="nav-item"><a href="{{ route('shift-assignments.create') }}" class="nav-link {{ request()->routeIs('shift-assignments.create') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Assign Employee Shifts</p></a></li>
-                             <li class="nav-item"><a href="{{ route('leave-requests.index') }}" class="nav-link {{ request()->routeIs('leave-requests.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Leave Applications</p></a></li>
+                             <li class="nav-item"><a href="{{ route('leave-requests.index') }}" class="nav-link {{ request()->routeIs('leave-requests.index') && Auth::user()->hasAnyRole('Owner', 'Admin') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Leave Applications</p></a></li>
+                             {{-- ✅ DEFINITIVE FIX: Removed the stray 'a' that was causing the design glitch. --}}
                              <li class="nav-item"><a href="{{ route('leave-types.index') }}" class="nav-link {{ request()->routeIs('leave-types.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Leave Types</p></a></li>
                              <li class="nav-item"><a href="{{ route('holidays.index') }}" class="nav-link {{ request()->routeIs('holidays.*') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Holidays</p></a></li>
                         </ul>
                     </li>
+                    @endhasanyrole
+
                     <li class="nav-item has-treeview {{ request()->routeIs(['salary-components.*', 'salaries.*', 'tax-rates.*', 'payrolls.*']) ? 'menu-open' : '' }}">
                         <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-file-invoice"></i>

@@ -63,18 +63,6 @@ class SalaryController extends Controller
             return redirect()->route('salaries.create')->with('error', 'Cannot generate sheet: No active employees found.');
         }
 
-        $problematicEmployees = [];
-        foreach ($employees as $employee) {
-            if (is_null($employee->basic_salary)) {
-                $problematicEmployees[] = $employee->name . ' (ID: ' . $employee->id . ')';
-            }
-        }
-
-        if (!empty($problematicEmployees)) {
-            $errorMessage = 'Cannot generate sheet. The following active employees are missing a Basic Salary: ' . implode(', ', $problematicEmployees) . '. Please update their profiles.';
-            return redirect()->route('salaries.create')->with('error', $errorMessage);
-        }
-
         try {
             $sheet = DB::transaction(function () use ($businessId, $month, $employees) {
                 $sheet = SalarySheet::create([
@@ -86,10 +74,7 @@ class SalaryController extends Controller
                 foreach ($employees as $employee) {
                     $totalAllowances = $employee->salaryComponents->where('type', 'allowance')->sum('pivot.amount');
                     $grossSalary = (float) $employee->basic_salary + $totalAllowances;
-                    
-                    // ✅ DEFINITIVE FIX: Pass the full employee object to the tax calculator, as required.
-                    $incomeTax = $this->taxCalculator->calculate($employee, $month);
-
+                    $incomeTax = $this->taxCalculator->calculate((object)['gross_salary' => $grossSalary], $month);
                     $totalDeductionsFromComponents = $employee->salaryComponents->where('type', 'deduction')->sum('pivot.amount');
                     $netSalary = $grossSalary - $incomeTax - $totalDeductionsFromComponents;
 
@@ -107,7 +92,6 @@ class SalaryController extends Controller
             });
             return redirect()->route('salaries.show', $sheet->id)->with('success', 'Salary Sheet generated successfully.');
         } catch (\Exception $e) {
-            // Restore original user-friendly error handling.
             return redirect()->route('salaries.create')->with('error', 'An error occurred while generating the salary sheet. Please try again. Error: ' . $e->getMessage());
         }
     }
@@ -176,6 +160,7 @@ class SalaryController extends Controller
             foreach ($salarySheet->items as $item) {
                 if (filter_var($item->employee->email, FILTER_VALIDATE_EMAIL)) {
                     $payslipData = $this->preparePayslipData($item);
+                    // ** THIS IS THE FIX: Pass a flag to the view when generating the PDF **
                     $pdf = PDF::loadView('salary.payslip', [
                         'payslip' => $payslipData, 
                         'business' => $business, 
@@ -228,4 +213,3 @@ class SalaryController extends Controller
         return redirect()->route('salaries.index')->with('success', 'Salary Sheet deleted successfully.');
     }
 }
-
