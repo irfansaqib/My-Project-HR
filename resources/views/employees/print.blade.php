@@ -12,6 +12,7 @@
         .section-title { background-color: #e0e7ebf6 !important; padding: 5px 10px; font-weight: bold; margin-top: 1.5rem; border: 1px solid #ddd; font-size: 12pt; }
         .table-borderless td, .table-borderless th { border: 0; padding: .25rem; }
         .table td, .table th { padding: .4rem .75rem; vertical-align: middle; }
+        .badge { font-size: 10pt; }
         @media print {
             .no-print { display: none !important; }
             body { -webkit-print-color-adjust: exact; }
@@ -83,8 +84,31 @@
                 <tr><td class="text-muted">Designation</td><td><strong>{{ $employee->designation }}</strong></td></tr>
                 <tr><td class="text-muted">Department</td><td><strong>{{ $employee->department ?? 'N/A' }}</strong></td></tr>
                 <tr><td class="text-muted">Date of Joining</td><td><strong>{{ $employee->joining_date ? \Carbon\Carbon::parse($employee->joining_date)->format('d M, Y') : 'N/A' }}</strong></td></tr>
+                <tr><td class="text-muted">Probation Period</td><td><strong>{{ $employee->probation_period ? $employee->probation_period . ' Months' : 'N/A' }}</strong></td></tr>
+                <tr>
+                    <td class="text-muted">Status</td>
+                    <td>
+                        @php
+                            $statusClass = 'success'; // Default for 'active'
+                            if ($employee->status !== 'active') $statusClass = 'danger';
+                        @endphp
+                        <span class="badge badge-{{ $statusClass }} p-2"><strong>{{ ucfirst($employee->status) }}</strong></span>
+                    </td>
+                </tr>
+                <tr style="vertical-align: top;"><td class="text-muted">Job Description</td><td><strong>{!! nl2br(e($employee->job_description ?? 'N/A')) !!}</strong></td></tr>
             </tbody>
         </table>
+
+        @if($employee->exit_date)
+        <div class="section-title">Exit Details</div>
+        <table class="table table-sm table-borderless mt-2">
+            <tbody>
+                <tr><td style="width: 25%;" class="text-muted">Exit Date</td><td><strong>{{ \Carbon\Carbon::parse($employee->exit_date)->format('d M, Y') }}</strong></td></tr>
+                <tr><td class="text-muted">Type of Exit</td><td><strong>{{ ucfirst($employee->exit_type) }}</strong></td></tr>
+                <tr><td class="text-muted">Reason</td><td><strong>{{ $employee->exit_reason }}</strong></td></tr>
+            </tbody>
+        </table>
+        @endif
 
         <div class="section-title">Qualifications</div>
         <table class="table table-sm table-bordered mt-2">
@@ -110,8 +134,31 @@
             </tbody>
         </table>
         
+        <div class="section-title" style="page-break-before: always;">Disciplinary Warnings</div>
+        <table class="table table-sm table-bordered mt-2">
+            <thead class="table-secondary">
+                <tr>
+                    <th style="width: 15%;">Date</th>
+                    <th style="width: 25%;">Subject</th>
+                    <th>Description</th>
+                    <th style="width: 15%;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($employee->warnings as $warning)
+                <tr>
+                    <td>{{ $warning->warning_date->format('d M, Y') }}</td>
+                    <td>{{ $warning->subject }}</td>
+                    <td>{{ $warning->description }}</td>
+                    <td><span class="badge badge-{{ $warning->status == 'active' ? 'warning' : 'secondary' }}">{{ ucfirst($warning->status) }}</span></td>
+                </tr>
+                @empty
+                <tr><td colspan="4" class="text-center">No disciplinary warnings on record.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+
         <div class="section-title">Salary Details</div>
-        {{-- ** THIS TABLE HAS BEEN UPDATED ** --}}
         <table class="table table-sm table-bordered mt-2">
              <tr class="bg-light"><th style="width:75%">Basic Salary</th><td class="text-right">{{ number_format($employee->basic_salary, 2) }}</td></tr>
             @foreach($employee->salaryComponents->where('type', 'allowance') as $component)
@@ -127,11 +174,11 @@
             </tr>
             <tr class="font-weight-bold text-white" style="background-color: #343a40 !important;">
                 <td>Net Salary</td>
-                <td class="text-right">{{ number_format($employee->net_salary - $monthlyTax, 2) }}</td>
+                <td class="text-right">{{ number_format($employee->net_salary, 2) }}</td>
             </tr>
         </table>
 
-        <div class="section-title">Bank Account Details (Personal)</div>
+        <div class="section-title">Bank Account Details</div>
         <table class="table table-sm table-borderless mt-2">
             <tbody>
                 <tr>
@@ -145,44 +192,22 @@
             </tbody>
         </table>
         
-        <div class="section-title">Paying Bank Account (from Business)</div>
-        <table class="table table-sm table-borderless mt-2">
-            <tbody>
-                <tr>
-                    <td style="width: 25%;" class="text-muted">Bank Name</td>
-                    <td><strong>{{ $employee->payingBankAccount->bank_name ?? 'N/A' }}</strong></td>
-                </tr>
-                <tr>
-                    <td class="text-muted">Account Number</td>
-                    <td><strong>{{ $employee->payingBankAccount->account_number ?? 'N/A' }}</strong></td>
-                </tr>
-            </tbody>
-        </table>
-        
         <div class="section-title">Leaves Allocation</div>
         <table class="table table-sm table-borderless mt-2">
              <tbody>
-                <tr>
-                    <td style="width: 25%;" class="text-muted">Leaves Period</td>
-                    <td colspan="3"><strong>{{ $employee->leave_period_from ? \Carbon\Carbon::parse($employee->leave_period_from)->format('d M, Y') : 'N/A' }} to {{ $employee->leave_period_to ? \Carbon\Carbon::parse($employee->leave_period_to)->format('d M, Y') : 'N/A' }}</strong></td>
-                </tr>
                 @forelse($employee->leaveTypes as $leaveType)
                     <tr>
                         <td style="width: 25%;" class="text-muted">{{ $leaveType->name }}</td>
                         <td><strong>{{ $leaveType->pivot->days_allotted }}</strong></td>
-                        <td></td>
-                        <td></td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="4" class="text-muted">No leave types have been assigned.</td>
+                        <td class="text-muted">No leave types have been assigned.</td>
                     </tr>
                 @endforelse
                 <tr class="border-top">
                     <td class="font-weight-bold">Total Leaves</td>
                     <td><strong>{{ $employee->leaveTypes->sum('pivot.days_allotted') }}</strong></td>
-                    <td></td>
-                    <td></td>
                 </tr>
             </tbody>
         </table>

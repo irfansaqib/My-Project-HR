@@ -22,9 +22,15 @@
                             <b>Employee #</b> <a class="float-right">{{ $employee->employee_number }}</a>
                         </li>
                         <li class="list-group-item">
-                            <b>Status</b> 
+                            <b>Status</b>
                             <a class="float-right">
-                                <span class="badge badge-{{ $employee->status == 'active' ? 'success' : 'danger' }}">{{ ucfirst($employee->status) }}</span>
+                                @php
+                                    $statusClass = 'success'; // Default for 'active'
+                                    if ($employee->status !== 'active') {
+                                        $statusClass = 'danger';
+                                    }
+                                @endphp
+                                <span class="badge badge-{{ $statusClass }}">{{ ucfirst($employee->status) }}</span>
                             </a>
                         </li>
                         <li class="list-group-item">
@@ -32,8 +38,17 @@
                         </li>
                     </ul>
 
-                    <a href="{{ route('employees.edit', $employee) }}" class="btn btn-primary btn-block mb-2"><b>Edit Profile</b></a>
-                     <div class="text-center">
+                    @if($employee->status === 'active')
+                    <div class="row">
+                        <div class="col-6">
+                             <a href="{{ route('employees.edit', $employee) }}" class="btn btn-primary btn-block"><b>Edit Profile</b></a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{{ route('employees.exit.create', $employee->id) }}" class="btn btn-danger btn-block"><b>Process Exit</b></a>
+                        </div>
+                    </div>
+                    @endif
+                     <div class="text-center mt-2">
                         <a href="{{ route('employees.print', $employee) }}" target="_blank" class="btn btn-sm btn-outline-secondary">Print Details</a>
                         <a href="{{ route('employees.printContract', $employee) }}" target="_blank" class="btn btn-sm btn-outline-info">Print Contract</a>
                     </div>
@@ -44,9 +59,17 @@
         <div class="col-md-8">
             <div class="card">
                 <div class="card-header p-2">
+                    @php
+                        $activeWarningsCount = $employee->warnings->where('status', 'active')->count();
+                    @endphp
                     <ul class="nav nav-pills">
                         <li class="nav-item"><a class="nav-link active" href="#personal" data-toggle="tab">Personal Details</a></li>
                         <li class="nav-item"><a class="nav-link" href="#employment" data-toggle="tab">Employment Details</a></li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ $activeWarningsCount >= 3 ? 'bg-danger' : '' }}" href="#warnings" data-toggle="tab">
+                                Warnings <span class="badge {{ $activeWarningsCount >= 3 ? 'badge-light' : 'badge-warning' }} ml-1">{{ $activeWarningsCount }}</span>
+                            </a>
+                        </li>
                         <li class="nav-item"><a class="nav-link" href="#qualifications" data-toggle="tab">Qualification & Experience</a></li>
                         <li class="nav-item"><a class="nav-link" href="#salary" data-toggle="tab">Salary Structure</a></li>
                         <li class="nav-item"><a class="nav-link" href="#bank" data-toggle="tab">Bank Details</a></li>
@@ -89,7 +112,7 @@
                         </div>
 
                         <div class="tab-pane" id="employment">
-                             <strong><i class="fas fa-building mr-1"></i> Employment Details</strong>
+                            <strong><i class="fas fa-building mr-1"></i> Employment Details</strong>
                              <dl class="row mt-2">
                                 <dt class="col-sm-4">Designation</dt>
                                 <dd class="col-sm-8">{{ $employee->designation }}</dd>
@@ -97,11 +120,23 @@
                                 <dd class="col-sm-8">{{ $employee->department ?? 'N/A' }}</dd>
                                 <dt class="col-sm-4">Joining Date</dt>
                                 <dd class="col-sm-8">{{ $employee->joining_date ? \Carbon\Carbon::parse($employee->joining_date)->format('d M, Y') : 'N/A' }}</dd>
-                                <dt class="col-sm-4">Probation Period</dt>
-                                <dd class="col-sm-8">{{ $employee->probation_period ? $employee->probation_period . ' Months' : 'N/A' }}</dd>
                                 <dt class="col-sm-4">Job Description</dt>
-                                <dd class="col-sm-8">{{ $employee->job_description ?? 'N/A' }}</dd>
+                                <dd class="col-sm-8">{!! nl2br(e($employee->job_description ?? 'N/A')) !!}</dd>
                             </dl>
+                            
+                            @if($employee->exit_date)
+                            <hr>
+                            <strong><i class="fas fa-sign-out-alt mr-1 text-danger"></i> Exit Details</strong>
+                            <dl class="row mt-2">
+                                <dt class="col-sm-4">Exit Date</dt>
+                                <dd class="col-sm-8">{{ \Carbon\Carbon::parse($employee->exit_date)->format('d M, Y') }}</dd>
+                                <dt class="col-sm-4">Type of Exit</dt>
+                                <dd class="col-sm-8">{{ ucfirst($employee->exit_type) }}</dd>
+                                <dt class="col-sm-4">Reason</dt>
+                                <dd class="col-sm-8">{{ $employee->exit_reason }}</dd>
+                            </dl>
+                            @endif
+
                             <hr>
                             <strong><i class="fas fa-calendar-check mr-1"></i> Leave Allotment</strong>
                             <table class="table table-sm table-bordered mt-2" style="max-width: 600px;">
@@ -126,13 +161,55 @@
                                 <tfoot class="bg-light font-weight-bold">
                                     <tr>
                                         <td>Total Leaves</td>
-                                        {{-- ** THIS IS THE CORRECTED LINE ** --}}
                                         <td class="text-right">{{ $employee->leaveTypes->sum('pivot.days_allotted') }}</td>
                                     </tr>
                                 </tfoot>
                             </table>
                         </div>
                         
+                        <div class="tab-pane" id="warnings">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <strong><i class="fas fa-exclamation-circle mr-1"></i> Disciplinary Warnings History</strong>
+                                @if($employee->status === 'active')
+                                <a href="{{ route('warnings.create', ['employee' => $employee->id]) }}" class="btn btn-warning btn-sm">
+                                    <i class="fas fa-plus-circle"></i> Issue New Warning
+                                </a>
+                                @endif
+                            </div>
+
+                            @forelse($employee->warnings as $warning)
+                                <div class="post {{ $warning->status == 'withdrawn' ? 'text-muted' : '' }}">
+                                    <div class="user-block">
+                                        <span class="username">
+                                            <a href="#">{{ $warning->subject }}</a>
+                                            @if($warning->status == 'withdrawn')
+                                                <span class="badge badge-secondary ml-2">Withdrawn</span>
+                                            @endif
+                                        </span>
+                                        <span class="description">Issued on {{ $warning->warning_date->format('d M, Y') }} by {{ $warning->issuer->name }}</span>
+                                    </div>
+                                    <p>{{ $warning->description }}</p>
+
+                                    @if($warning->action_taken)
+                                        <p><strong>Action/Recommendation:</strong> {{ $warning->action_taken }}</p>
+                                    @endif
+
+                                    @if($warning->status == 'active')
+                                    <form action="{{ route('warnings.destroy', $warning->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to withdraw this warning?');" class="mt-2">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Withdraw Warning</button>
+                                    </form>
+                                    @endif
+                                </div>
+                                @if(!$loop->last) <hr> @endif
+                            @empty
+                                <div class="alert alert-info">
+                                    No disciplinary warnings have been issued to this employee.
+                                </div>
+                            @endforelse
+                        </div>
+
                         <div class="tab-pane" id="qualifications">
                              <strong><i class="fas fa-graduation-cap mr-1"></i> Qualifications</strong>
                              <table class="table table-bordered table-striped mt-2">

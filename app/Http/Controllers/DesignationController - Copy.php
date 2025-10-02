@@ -32,6 +32,7 @@ class DesignationController extends Controller
             'business_id' => Auth::user()->business_id,
         ]);
 
+        // ✅ DEFINITIVE FIX: Changed wantsJson() to ajax() to correctly respond to the script.
         if ($request->ajax()) {
             return response()->json(['success' => true, 'designation' => $designation]);
         }
@@ -78,4 +79,3 @@ class DesignationController extends Controller
         return Redirect::route('designations.index')->with('success', 'Designation deleted successfully!');
     }
 }
-

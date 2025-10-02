@@ -24,6 +24,8 @@ use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\EmployeeShiftAssignmentController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\WarningController;
+use App\Http\Controllers\EmployeeExitController;
 
 /*
 |--------------------------------------------------------------------------
@@ -39,10 +41,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Reporting Routes
     Route::get('reports/attendance', [ReportController::class, 'attendanceReport'])->name('reports.attendance');
-    // ** NEW: Calendar Routes **
     Route::get('reports/attendance-calendar', [ReportController::class, 'attendanceCalendar'])->name('reports.attendance-calendar');
     Route::get('api/calendar-events', [ReportController::class, 'calendarEvents'])->name('api.calendar-events');
-
 
     // Business & Profile Routes
     Route::resource('business', BusinessController::class)->except(['index', 'destroy']);
@@ -61,16 +61,29 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('client-credentials', ClientCredentialController::class);
     Route::resource('leave-types', LeaveTypeController::class);
     Route::resource('leave-applications', LeaveRequestController::class)->names('leave-requests');
-    
-    // ✅ DEFINITIVE FIX: Added routes for the extra leave feature.
-    Route::get('leave-requests/extra/create', [LeaveRequestController::class, 'extraCreate'])->name('leave-requests.extra-create');
-    Route::post('leave-requests/extra', [LeaveRequestController::class, 'extraStore'])->name('leave-requests.extra-store');
-
     Route::resource('payrolls', PayrollController::class)->except(['show', 'edit', 'update', 'create']);
     Route::resource('salary-components', SalaryComponentController::class);
     Route::resource('shifts', ShiftController::class);
     Route::resource('holidays', HolidayController::class);
     Route::resource('attendances', AttendanceController::class)->except(['edit', 'show', 'destroy']);
+
+    // --- NEW MODULES ---
+
+    // Employee Exit Routes
+    Route::get('employees/{employee}/exit', [EmployeeExitController::class, 'create'])->name('employees.exit.create');
+    Route::post('employees/{employee}/exit', [EmployeeExitController::class, 'store'])->name('employees.exit.store');
+
+    // Warnings Routes
+    Route::get('employees/{employee}/warnings/create', [WarningController::class, 'create'])->name('warnings.create');
+    Route::post('employees/{employee}/warnings', [WarningController::class, 'store'])->name('warnings.store');
+    Route::delete('warnings/{warning}', [WarningController::class, 'destroy'])->name('warnings.destroy');
+    
+    // --- END NEW MODULES ---
+
+
+    // Leave - Extra Routes
+    Route::get('leave-requests/extra/create', [LeaveRequestController::class, 'extraCreate'])->name('leave-requests.extra-create');
+    Route::post('leave-requests/extra', [LeaveRequestController::class, 'extraStore'])->name('leave-requests.extra-store');
 
     // Bulk Attendance Routes
     Route::get('attendances-bulk', [AttendanceController::class, 'bulkCreate'])->name('attendances.bulk.create');
@@ -104,6 +117,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('payslip/{salarySheetItem}', [SalaryController::class, 'payslip'])->name('salaries.payslip');
     Route::get('salaries/{salarySheet}/print-all-payslips', [SalaryController::class, 'printAllPayslips'])->name('salaries.payslips.print-all');
     Route::post('salaries/{salarySheet}/send-all-payslips', [SalaryController::class, 'sendAllPayslips'])->name('salaries.payslips.send-all');
+    
+    // ✅ DEFINITIVE FIX: Added the missing route for printing a single salary sheet.
     Route::get('salaries/{salarySheet}/print', [SalaryController::class, 'printSheet'])->name('salaries.print');
 });
 

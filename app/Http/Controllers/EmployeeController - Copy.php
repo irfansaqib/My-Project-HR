@@ -18,10 +18,14 @@ use Illuminate\Support\Facades\DB;
 
 class EmployeeController extends Controller
 {
+    /**
+     * ✅ DEFINITIVE FIX: Integrated the status filter logic with your existing code.
+     */
     public function index(Request $request)
     {
         $query = Employee::with(['department', 'designation']);
 
+        // Handle the status filter
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
         }
@@ -48,9 +52,6 @@ class EmployeeController extends Controller
     public function store(Request $request)
     {
         $request->validate(['name' => 'required|string|max:255', 'email' => 'required|email|unique:employees,email']);
-
-        // ✅ DEFINITIVE FIX: Sanitize salary inputs to remove commas before processing
-        $this->sanitizeSalaryInputs($request);
 
         DB::transaction(function () use ($request) {
             $department = Department::firstOrCreate(['name' => $request->department, 'business_id' => auth()->user()->business_id]);
@@ -95,9 +96,6 @@ class EmployeeController extends Controller
     public function update(Request $request, Employee $employee)
     {
         $request->validate(['name' => 'required|string|max:255', 'email' => 'required|email|unique:employees,email,'.$employee->id]);
-
-        // ✅ DEFINITIVE FIX: Sanitize salary inputs to remove commas before processing
-        $this->sanitizeSalaryInputs($request);
 
         DB::transaction(function () use ($request, $employee) {
             $department = Department::firstOrCreate(['name' => $request->department, 'business_id' => auth()->user()->business_id]);
@@ -176,23 +174,6 @@ class EmployeeController extends Controller
         }
     }
 
-    // ✅ DEFINITIVE FIX: Updated the helper function to sanitize ALL salary fields
-    protected function sanitizeSalaryInputs(Request $request)
-    {
-        $request->merge([
-            'basic_salary' => str_replace(',', '', $request->input('basic_salary', 0)),
-            'gross_salary' => str_replace(',', '', $request->input('gross_salary', 0)),
-            'net_salary' => str_replace(',', '', $request->input('net_salary', 0)),
-        ]);
-
-        if ($request->has('components')) {
-            $sanitizedComponents = array_map(function($amount) {
-                return str_replace(',', '', $amount);
-            }, $request->input('components', []));
-            $request->merge(['components' => $sanitizedComponents]);
-        }
-    }
-
     public function print(Employee $employee)
     {
         $employee->load('qualifications', 'experiences', 'salaryComponents', 'leaveTypes');
@@ -208,4 +189,3 @@ class EmployeeController extends Controller
         return view('employees.contract', compact('employee', 'business'));
     }
 }
-

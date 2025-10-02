@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers; // Corrected this line
+namespace App\Http\Controllers;
 
 use App\Models\Department;
 use Illuminate\Http\Request;
@@ -32,8 +32,7 @@ class DepartmentController extends Controller
             'business_id' => Auth::user()->business_id,
         ]);
 
-        // If the request is from our script, return JSON
-        if ($request->wantsJson()) {
+        if ($request->ajax()) {
             return response()->json(['success' => true, 'department' => $department]);
         }
 
@@ -74,3 +73,4 @@ class DepartmentController extends Controller
         return Redirect::route('departments.index')->with('success', 'Department deleted successfully!');
     }
 }
+

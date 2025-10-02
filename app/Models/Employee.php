@@ -14,7 +14,6 @@ class Employee extends Model
 
     protected $guarded = [];
 
-    // ... existing relationships from your file ...
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
@@ -75,9 +74,13 @@ class Employee extends Model
     }
 
     /**
-     * ✅ DEFINITIVE FIX: Added a safe helper function to get the active shift for a given date.
-     * This uses your existing shiftAssignments relationship.
+     * ✅ NEW: Relationship to the warnings table.
      */
+    public function warnings()
+    {
+        return $this->hasMany(Warning::class)->orderBy('warning_date', 'desc');
+    }
+
     public function getActiveShiftForDate(Carbon $date)
     {
         $assignment = $this->shiftAssignments()
@@ -86,10 +89,9 @@ class Employee extends Model
                 $query->where('end_date', '>=', $date->format('Y-m-d'))
                       ->orWhereNull('end_date');
             })
-            ->latest('start_date') // Get the most recent assignment if there are overlaps
+            ->latest('start_date')
             ->first();
 
         return $assignment ? $assignment->shift : null;
     }
 }
-

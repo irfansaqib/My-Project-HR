@@ -19,7 +19,7 @@
         flex: 1 1 auto;
     }
 
-    /* Styles for Section Headers */
+    /* ✅ START: Styles for Section Headers */
     .form-section-header {
         background-color: #eef2f7; /* A light, clean blue-grey shade */
         padding: 0.75rem 1.25rem;
@@ -34,9 +34,11 @@
         font-weight: 600;
         color: #495057;
     }
+    /* Remove top margin for the very first header */
     .card-body > .form-section-header:first-of-type {
         margin-top: 0;
     }
+     /* ✅ END: Styles for Section Headers */
 </style>
 @endpush
 
@@ -219,17 +221,16 @@
     <div class="row">
         <div class="col-md-4 form-group">
             <label for="basic_salary">Basic Salary <span class="text-danger">*</span></label>
-            {{-- ✅ Changed type to text to allow for commas --}}
-            <input type="text" name="basic_salary" class="form-control salary-calc" id="basic_salary" value="{{ old('basic_salary', $employee->basic_salary ?? 0) }}" required>
+            <input type="number" step="0.01" name="basic_salary" class="form-control salary-calc" id="basic_salary" value="{{ old('basic_salary', $employee->basic_salary ?? 0) }}" required>
         </div>
     </div>
     <div class="card card-outline card-success">
         <div class="card-header"><h3 class="card-title">Allowances</h3></div>
-        <div class="card-body"><div class="row">@forelse ($allowances as $allowance)<div class="col-md-4 form-group"><label for="component_{{ $allowance->id }}">{{ $allowance->name }}</label><input type="text" name="components[{{ $allowance->id }}]" class="form-control salary-calc allowance" id="component_{{ $allowance->id }}" value="{{ old('components.'.$allowance->id, isset($employee) && $employee->salaryComponents->find($allowance->id) ? $employee->salaryComponents->find($allowance->id)->pivot->amount : 0) }}"></div>@empty<div class="col-12"><p class="text-muted">No allowance components defined.</p></div>@endforelse</div></div>
+        <div class="card-body"><div class="row">@forelse ($allowances as $allowance)<div class="col-md-4 form-group"><label for="component_{{ $allowance->id }}">{{ $allowance->name }}</label><input type="number" step="0.01" name="components[{{ $allowance->id }}]" class="form-control salary-calc allowance" id="component_{{ $allowance->id }}" value="{{ old('components.'.$allowance->id, isset($employee) && $employee->salaryComponents->find($allowance->id) ? $employee->salaryComponents->find($allowance->id)->pivot->amount : 0) }}"></div>@empty<div class="col-12"><p class="text-muted">No allowance components defined.</p></div>@endforelse</div></div>
     </div>
     <div class="card card-outline card-danger mt-3">
         <div class="card-header"><h3 class="card-title">Deductions</h3></div>
-        <div class="card-body"><div class="row">@forelse ($deductions as $deduction)<div class="col-md-4 form-group"><label for="component_{{ $deduction->id }}">{{ $deduction->name }}</label><input type="text" name="components[{{ $deduction->id }}]" class="form-control salary-calc deduction" id="component_{{ $deduction->id }}" value="{{ old('components.'.$deduction->id, isset($employee) && $employee->salaryComponents->find($deduction->id) ? $employee->salaryComponents->find($deduction->id)->pivot->amount : 0) }}"></div>@empty<div class="col-12"><p class="text-muted">No deduction components defined.</p></div>@endforelse</div></div>
+        <div class="card-body"><div class="row">@forelse ($deductions as $deduction)<div class="col-md-4 form-group"><label for="component_{{ $deduction->id }}">{{ $deduction->name }}</label><input type="number" step="0.01" name="components[{{ $deduction->id }}]" class="form-control salary-calc deduction" id="component_{{ $deduction->id }}" value="{{ old('components.'.$deduction->id, isset($employee) && $employee->salaryComponents->find($deduction->id) ? $employee->salaryComponents->find($deduction->id)->pivot->amount : 0) }}"></div>@empty<div class="col-12"><p class="text-muted">No deduction components defined.</p></div>@endforelse</div></div>
     </div>
     <div class="row mt-3 bg-light pt-3 rounded">
         <div class="col-md-6 form-group">
@@ -321,55 +322,27 @@
         });
         $('#cnic').mask('00000-0000000-0');
 
-        // ✅ START: Currency Formatting Logic
-        function formatNumber(num) {
-            return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
-        }
-
-        function unformatNumber(str) {
-            if (typeof str !== 'string' || !str) return 0;
-            return parseFloat(str.replace(/,/g, ''));
-        }
-
+        // Other functions...
         function calculateSalary() {
-            let basic = unformatNumber($('#basic_salary').val());
+            let basic = parseFloat($('#basic_salary').val()) || 0;
             let totalAllowances = 0;
             let totalDeductions = 0;
-
-            $('.allowance').each(function() { totalAllowances += unformatNumber($(this).val()); });
-            $('.deduction').each(function() { totalDeductions += unformatNumber($(this).val()); });
-
+            $('.allowance').each(function() { totalAllowances += parseFloat($(this).val()) || 0; });
+            $('.deduction').each(function() { totalDeductions += parseFloat($(this).val()) || 0; });
             let gross = basic + totalAllowances;
             let net = gross - totalDeductions;
-
-            $('#gross_salary').val(formatNumber(gross));
-            $('#net_salary').val(formatNumber(net));
+            $('#gross_salary').val(gross.toFixed(2));
+            $('#net_salary').val(net.toFixed(2));
         }
-
-        // Apply formatting when user stops typing in a salary field
-        $('.salary-calc').on('blur', function() {
-            let value = unformatNumber($(this).val());
-            $(this).val(formatNumber(value));
-        });
-        // ✅ END: Currency Formatting Logic
-        
         function calculateLeaves() {
             let total = 0;
             $('.leave-calc').each(function() { total += parseInt($(this).val()) || 0; });
             $('#total_leaves').val(total);
         }
-        
         $('.salary-calc').on('input', calculateSalary);
         $('.leave-calc').on('input', calculateLeaves);
-        
-        // Initial calculation and formatting on page load
         calculateSalary();
-        $('.salary-calc').each(function() {
-            let value = unformatNumber($(this).val());
-            $(this).val(formatNumber(value));
-        });
         calculateLeaves();
-        
         $('.custom-file-input').on('change', function(event) {
             let fileName = $(this).val().split('\\').pop();
             $(this).next('.custom-file-label').addClass("selected").html(fileName);
