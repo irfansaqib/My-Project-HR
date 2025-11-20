@@ -12,11 +12,23 @@
     </div>
     <div class="card-body">
         <form action="{{ route('attendances.index') }}" method="GET" class="form-inline mb-3">
-            <div class="form-group">
+            <div class="form-group mr-2">
                 <label for="date" class="mr-2">Select Date:</label>
-                <input type="date" name="date" id="date" class="form-control" value="{{ $filterDate }}">
+                {{-- ✅ FIX: Handles an empty/null date correctly --}}
+                <input type="date" name="date" id="date" class="form-control" value="{{ $filterDate ?? '' }}">
             </div>
-            <button type="submit" class="btn btn-info ml-2">View Report</button>
+            <div class="form-group mr-2">
+                <label for="shift_id" class="mr-2">Select Shift:</label>
+                <select name="shift_id" id="shift_id" class="form-control">
+                    <option value="">All Shifts</option>
+                    @foreach($shifts as $shift)
+                        <option value="{{ $shift->id }}" @selected($filterShiftId == $shift->id)>
+                            {{ $shift->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <button type="submit" class="btn btn-info">View Report</button>
         </form>
 
         <div class="table-responsive">
@@ -29,37 +41,33 @@
                         <th>Check In</th>
                         <th>Check Out</th>
                         <th>Total Hours</th>
-                        <th style="width: 100px;">Actions</th>
+                        <th style="width: 150px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($attendances as $attendance)
-                        <form action="{{ route('attendances.update', $attendance->id) }}" method="POST">
-                        @csrf
-                        @method('PUT')
-                        <tr class="attendance-row">
+                        <tr class="attendance-row" data-update-url="{{ route('attendances.update', $attendance->id) }}">
                             <td>{{ $attendance->date->format('d-M-Y') }}</td>
                             <td>{{ $attendance->employee->name }}</td>
                             <td>
                                 <select name="status" class="form-control form-control-sm status-select" disabled>
-                                    <option value="present" @if($attendance->status == 'present') selected @endif>Present</option>
-                                    <option value="absent" @if($attendance->status == 'absent') selected @endif>Absent</option>
-                                    <option value="leave" @if($attendance->status == 'leave') selected @endif>Leave</option>
-                                    <option value="half-day" @if($attendance->status == 'half-day') selected @endif>Half-day</option>
+                                    <option value="present" @selected($attendance->status == 'present')>Present</option>
+                                    <option value="absent" @selected($attendance->status == 'absent')>Absent</option>
+                                    <option value="leave" @selected($attendance->status == 'leave')>Leave</option>
+                                    <option value="half-day" @selected($attendance->status == 'half-day')>Half-day</option>
                                 </select>
                             </td>
                             <td><input type="time" name="check_in" class="form-control form-control-sm check-in" value="{{ $attendance->check_in ? \Carbon\Carbon::parse($attendance->check_in)->format('H:i') : '' }}" disabled></td>
                             <td><input type="time" name="check_out" class="form-control form-control-sm check-out" value="{{ $attendance->check_out ? \Carbon\Carbon::parse($attendance->check_out)->format('H:i') : '' }}" disabled></td>
-                            {{-- ✅ DEFINITIVE FIX: Use {!! !!} to render HTML status messages --}}
-                            <td>{!! $attendance->work_duration !!}</td>
+                            <td class="work-duration">{!! $attendance->work_duration !!}</td>
                             <td>
                                 <button type="button" class="btn btn-sm btn-warning edit-btn">Edit</button>
-                                <button type="submit" class="btn btn-sm btn-success save-btn" style="display: none;">Save</button>
+                                <button type="button" class="btn btn-sm btn-success save-btn" style="display: none;">Save</button>
+                                <button type="button" class="btn btn-sm btn-secondary cancel-btn" style="display: none;">Cancel</button>
                             </td>
                         </tr>
-                        </form>
                     @empty
-                        <tr><td colspan="7" class="text-center">No attendance records found for this date.</td></tr>
+                        <tr><td colspan="7" class="text-center">No attendance records found for this date/shift.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -72,49 +80,101 @@
 @endsection
 
 @push('scripts')
+{{-- The JavaScript for this page remains unchanged --}}
 <script>
-    $(document).ready(function() {
-        function toggleTimeInputs(row) {
-            const status = row.find('.status-select').val();
-            const checkInInput = row.find('.check-in');
-            const checkOutInput = row.find('.check-out');
-            const isLeaveOrAbsent = status === 'leave' || status === 'absent';
+document.addEventListener('DOMContentLoaded', function () {
+    const tableBody = document.querySelector('table tbody');
 
-            checkInInput.prop('disabled', isLeaveOrAbsent);
-            checkOutInput.prop('disabled', isLeaveOrAbsent || !checkInInput.val());
+    let originalValues = {};
 
-            if (isLeaveOrAbsent) {
-                checkInInput.val('');
-                checkOutInput.val('');
-            }
+    tableBody.addEventListener('click', function (e) {
+        const target = e.target;
+        const row = target.closest('tr');
+        if (!row) return;
+
+        // --- EDIT BUTTON ---
+        if (target.classList.contains('edit-btn')) {
+            const inputs = row.querySelectorAll('select, input[type="time"]');
+            
+            originalValues[row.dataset.updateUrl] = {
+                status: row.querySelector('.status-select').value,
+                check_in: row.querySelector('.check-in').value,
+                check_out: row.querySelector('.check-out').value,
+            };
+
+            inputs.forEach(input => input.disabled = false);
+            target.style.display = 'none';
+            row.querySelector('.save-btn').style.display = 'inline-block';
+            row.querySelector('.cancel-btn').style.display = 'inline-block';
         }
 
-        $('.edit-btn').on('click', function() {
-            const row = $(this).closest('.attendance-row');
-            row.find('select, input').prop('disabled', false); 
-            toggleTimeInputs(row); 
-            $(this).hide();
-            row.find('.save-btn').show();
-        });
-
-        $('.status-select').on('change', function() {
-            if (!$(this).prop('disabled')) {
-                const row = $(this).closest('.attendance-row');
-                toggleTimeInputs(row);
+        // --- CANCEL BUTTON ---
+        if (target.classList.contains('cancel-btn')) {
+            const originalData = originalValues[row.dataset.updateUrl];
+            if (originalData) {
+                row.querySelector('.status-select').value = originalData.status;
+                row.querySelector('.check-in').value = originalData.check_in;
+                row.querySelector('.check-out').value = originalData.check_out;
             }
-        });
 
-        // ✅ DEFINITIVE FIX: Add logic to disable check-out if check-in is empty.
-        $(document).on('input', '.check-in', function() {
-            const row = $(this).closest('.attendance-row');
-            const checkOutInput = row.find('.check-out');
-            if ($(this).val()) {
-                checkOutInput.prop('disabled', false);
-            } else {
-                checkOutInput.prop('disabled', true).val('');
-            }
-        });
+            row.querySelectorAll('select, input[type="time"]').forEach(input => input.disabled = true);
+            target.style.display = 'none';
+            row.querySelector('.save-btn').style.display = 'none';
+            row.querySelector('.edit-btn').style.display = 'inline-block';
+        }
+
+        // --- SAVE BUTTON ---
+        if (target.classList.contains('save-btn')) {
+            const url = row.dataset.updateUrl;
+            const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            const formData = new FormData();
+            formData.append('status', row.querySelector('.status-select').value);
+            formData.append('check_in', row.querySelector('.check-in').value);
+            formData.append('check_out', row.querySelector('.check-out').value);
+            formData.append('_method', 'PATCH');
+
+            target.textContent = 'Saving...';
+            target.disabled = true;
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': token,
+                    'Accept': 'application/json',
+                },
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw err; });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    if(data.attendance && data.attendance.work_duration) {
+                        row.querySelector('.work-duration').innerHTML = data.attendance.work_duration;
+                    }
+                    
+                    row.querySelectorAll('select, input[type="time"]').forEach(input => input.disabled = true);
+                    target.style.display = 'none';
+                    row.querySelector('.cancel-btn').style.display = 'none';
+                    row.querySelector('.edit-btn').style.display = 'inline-block';
+                }
+            })
+            .catch(error => {
+                console.error('Update failed:', error);
+                alert('An error occurred. Check the console for details.');
+                const cancelButton = row.querySelector('.cancel-btn');
+                if(cancelButton) cancelButton.click();
+            })
+            .finally(() => {
+                target.textContent = 'Save';
+                target.disabled = false;
+            });
+        }
     });
+});
 </script>
 @endpush
-

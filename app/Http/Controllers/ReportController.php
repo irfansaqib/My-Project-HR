@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\Shift;
 use App\Models\Holiday;
 use App\Models\LeaveRequest;
+use App\Models\SalarySheet; // <-- Imported for payroll report
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -26,17 +27,13 @@ class ReportController extends Controller
         if ($request->filled('date_from')) $query->where('date', '>=', $request->date_from);
         if ($request->filled('date_to')) $query->where('date', '<=', $request->date_to);
 
-        // ✅ DEFINITIVE FIX: The old, incorrect calculation logic has been removed.
-        // The view will now automatically use the intelligent `getWorkDurationAttribute`
-        // from the Attendance model, ensuring consistency across the application.
         $attendances = $query->orderBy('date', 'desc')->get();
         
         return view('reports.attendance', compact('attendances', 'employees', 'shifts'));
     }
 
-    // --- NO CHANGES HAVE BEEN MADE TO THE FUNCTIONS BELOW ---
-
-    public function attendanceCalendar()
+    // This is the correct method for showing the calendar view
+    public function attendanceCalendar(Request $request)
     {
         $employees = Auth::user()->business->employees()->orderBy('name')->get();
         return view('reports.calendar', compact('employees'));
@@ -114,5 +111,24 @@ class ReportController extends Controller
         
         return response()->json($events);
     }
-}
 
+    /**
+     * ✅ NEW METHOD: Added missing leave report method.
+     */
+    public function leaveReport(Request $request)
+    {
+        // Basic placeholder logic. We can build this out later.
+        $leaves = collect();
+        return view('reports.leave', compact('leaves'));
+    }
+
+    /**
+     * ✅ NEW METHOD: Added missing payroll report method.
+     */
+    public function payrollReport(Request $request)
+    {
+        // Basic placeholder logic. We can build this out later.
+        $payrolls = collect();
+        return view('reports.payroll', compact('payrolls'));
+    }
+}

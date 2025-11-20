@@ -8,6 +8,14 @@ use Illuminate\Support\Facades\Auth;
 
 class HolidayController extends Controller
 {
+    /**
+     * ✅ NEW: Authorize all resource methods using HolidayPolicy
+     */
+    public function __construct()
+    {
+        $this->authorizeResource(Holiday::class, 'holiday');
+    }
+
     public function index()
     {
         $holidays = Auth::user()->business->holidays()->orderBy('date', 'desc')->paginate(15);
@@ -33,17 +41,13 @@ class HolidayController extends Controller
 
     public function edit(Holiday $holiday)
     {
-        if ($holiday->business_id !== Auth::user()->business_id) {
-            abort(403);
-        }
+        // ✅ REMOVED: Manual authorization check
         return view('holidays.edit', compact('holiday'));
     }
 
     public function update(Request $request, Holiday $holiday)
     {
-        if ($holiday->business_id !== Auth::user()->business_id) {
-            abort(403);
-        }
+        // ✅ REMOVED: Manual authorization check
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -57,9 +61,7 @@ class HolidayController extends Controller
 
     public function destroy(Holiday $holiday)
     {
-        if ($holiday->business_id !== Auth::user()->business_id) {
-            abort(403);
-        }
+        // ✅ REMOVED: Manual authorization check
         
         $holiday->delete();
 

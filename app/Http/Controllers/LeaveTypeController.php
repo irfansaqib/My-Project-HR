@@ -9,6 +9,14 @@ use Illuminate\Support\Facades\Auth;
 class LeaveTypeController extends Controller
 {
     /**
+     * ✅ NEW: Authorize all resource methods using LeaveTypePolicy
+     */
+    public function __construct()
+    {
+        $this->authorizeResource(LeaveType::class, 'leave_type');
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index()
@@ -44,10 +52,7 @@ class LeaveTypeController extends Controller
      */
     public function edit(LeaveType $leaveType)
     {
-        // Authorization check
-        if ($leaveType->business_id !== Auth::user()->business_id) {
-            abort(403);
-        }
+        // ✅ REMOVED: Manual authorization check
         return view('leave-types.edit', compact('leaveType'));
     }
 
@@ -56,10 +61,7 @@ class LeaveTypeController extends Controller
      */
     public function update(Request $request, LeaveType $leaveType)
     {
-        // Authorization check
-        if ($leaveType->business_id !== Auth::user()->business_id) {
-            abort(403);
-        }
+        // ✅ REMOVED: Manual authorization check
 
         $request->validate([
             'name' => 'required|string|max:255',
@@ -75,10 +77,7 @@ class LeaveTypeController extends Controller
      */
     public function destroy(LeaveType $leaveType)
     {
-        // Authorization check
-        if ($leaveType->business_id !== Auth::user()->business_id) {
-            abort(403);
-        }
+        // ✅ REMOVED: Manual authorization check
         
         $leaveType->delete();
 

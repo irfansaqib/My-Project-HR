@@ -40,15 +40,15 @@ class EmailConfigurationController extends Controller
     }
 
     /**
-     * ** NEW FUNCTION TO TEST EMAIL SETTINGS **
+     * ** UPDATED FUNCTION TO TEST EMAIL SETTINGS **
      */
     public function test(MailConfigurationService $mailConfigService)
     {
         $this->authorize('update', EmailConfiguration::class);
         $business = Auth::user()->business;
 
-        // ** IMPORTANT: Change this to your personal email address for testing **
-        $recipientEmail = 'irfansaqib01@gmail.com';
+        // ** 1. FIX: Get the logged-in user's email dynamically **
+        $recipientEmail = Auth::user()->email;
         
         try {
             // Load the business-specific mail settings
@@ -60,11 +60,12 @@ class EmailConfigurationController extends Controller
                         ->subject('Test Email from HR Application');
             });
 
-            return "<h1>Success!</h1><p>Test email sent successfully! Please check your inbox at <strong>{$recipientEmail}</strong>. If it's not there, check your spam folder.</p>";
+            // ** 2. FIX: Return a proper redirect with a success message **
+            return redirect()->back()->with('success', "Test email sent successfully! Please check your inbox at {$recipientEmail}.");
 
         } catch (\Exception $e) {
-            // If it fails, display the exact error message
-            return "<h1>Email Failed to Send</h1><p>The system returned the following error:</p><pre style='background-color:#f8d7da; color:#721c24; padding:15px; border-radius:5px; white-space: pre-wrap; word-wrap: break-word;'>" . $e->getMessage() . "</pre>";
+            // ** 3. FIX: Return a proper redirect with the error message **
+            return redirect()->back()->with('error', "Email Failed to Send: " . $e->getMessage());
         }
     }
 }

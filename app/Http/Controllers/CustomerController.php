@@ -9,6 +9,15 @@ use Illuminate\Support\Facades\Redirect;
 
 class CustomerController extends Controller
 {
+    /**
+     * ✅ NEW: Add a constructor to authorize resource methods.
+     * This automatically uses CustomerPolicy for all methods.
+     */
+    public function __construct()
+    {
+        $this->authorizeResource(Customer::class, 'customer');
+    }
+
     public function index()
     {
         $customers = Customer::where('business_id', Auth::user()->business_id)->get();
@@ -65,20 +74,17 @@ class CustomerController extends Controller
      */
     public function show(Customer $customer)
     {
-        if ($customer->business_id !== Auth::user()->business_id) {
-            abort(403);
-        }
+        // ✅ REMOVED: The manual 'if' check is no longer needed.
+        // $this->authorizeResource() in the constructor already handled this.
         return view('customers.show', compact('customer'));
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Customer $customer)
+    public a(Customer $customer)
     {
-        if ($customer->business_id !== Auth::user()->business_id) {
-            abort(403);
-        }
+        // ✅ REMOVED: The manual 'if' check is no longer needed.
         return view('customers.edit', compact('customer'));
     }
 
@@ -87,9 +93,7 @@ class CustomerController extends Controller
      */
     public function update(Request $request, Customer $customer)
     {
-        if ($customer->business_id !== Auth::user()->business_id) {
-            abort(403);
-        }
+        // ✅ REMOVED: The manual 'if' check is no longer needed.
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -113,9 +117,7 @@ class CustomerController extends Controller
      */
     public function destroy(Customer $customer)
     {
-        if ($customer->business_id !== Auth::user()->business_id) {
-            abort(403);
-        }
+        // ✅ REMOVED: The manual 'if' check is no longer needed.
 
         $customer->delete();
 

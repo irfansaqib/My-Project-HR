@@ -10,6 +10,14 @@ use Illuminate\Validation\Rule;
 
 class DesignationController extends Controller
 {
+    /**
+     * ✅ NEW: Authorize all resource methods using DesignationPolicy
+     */
+    public function __construct()
+    {
+        $this->authorizeResource(Designation::class, 'designation');
+    }
+
     public function index()
     {
         $designations = Designation::where('business_id', Auth::user()->business_id)->orderBy('name')->get();
@@ -46,17 +54,13 @@ class DesignationController extends Controller
 
     public function edit(Designation $designation)
     {
-        if ($designation->business_id !== Auth::user()->business_id) {
-            abort(403);
-        }
+        // ✅ REMOVED: Manual authorization check
         return view('designations.edit', compact('designation'));
     }
 
     public function update(Request $request, Designation $designation)
     {
-        if ($designation->business_id !== Auth::user()->business_id) {
-            abort(403);
-        }
+        // ✅ REMOVED: Manual authorization check
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('designations')->where('business_id', Auth::user()->business_id)->ignore($designation->id)],
@@ -69,13 +73,10 @@ class DesignationController extends Controller
 
     public function destroy(Designation $designation)
     {
-        if ($designation->business_id !== Auth::user()->business_id) {
-            abort(403);
-        }
+        // ✅ REMOVED: Manual authorization check
         
         $designation->delete();
 
         return Redirect::route('designations.index')->with('success', 'Designation deleted successfully!');
     }
 }
-

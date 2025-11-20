@@ -7,6 +7,19 @@
     <div class="card-header">
         <h3 class="card-title">Edit Employee: {{ $employee->name }}</h3>
     </div>
+
+    {{-- ✅ ADDED: Error Reporting Block --}}
+    @if ($errors->any())
+        <div class="alert alert-danger m-3">
+            <h5><i class="icon fas fa-ban"></i> Error!</h5>
+            <ul>
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <form method="POST" action="{{ route('employees.update', $employee) }}" enctype="multipart/form-data">
         @csrf
         @method('PATCH')

@@ -81,7 +81,8 @@
         <table class="table table-sm table-borderless mt-2">
             <tbody>
                 <tr><td style="width: 25%;" class="text-muted">Employee ID</td><td><strong>{{ $employee->employee_number }}</strong></td></tr>
-                <tr><td class="text-muted">Designation</td><td><strong>{{ $employee->designation }}</strong></td></tr>
+                {{-- ✅ FIX: Access as simple string --}}
+                <tr><td class="text-muted">Designation</td><td><strong>{{ $employee->designation ?? 'N/A' }}</strong></td></tr>
                 <tr><td class="text-muted">Department</td><td><strong>{{ $employee->department ?? 'N/A' }}</strong></td></tr>
                 <tr><td class="text-muted">Date of Joining</td><td><strong>{{ $employee->joining_date ? \Carbon\Carbon::parse($employee->joining_date)->format('d M, Y') : 'N/A' }}</strong></td></tr>
                 <tr><td class="text-muted">Probation Period</td><td><strong>{{ $employee->probation_period ? $employee->probation_period . ' Months' : 'N/A' }}</strong></td></tr>
@@ -161,20 +162,21 @@
         <div class="section-title">Salary Details</div>
         <table class="table table-sm table-bordered mt-2">
              <tr class="bg-light"><th style="width:75%">Basic Salary</th><td class="text-right">{{ number_format($employee->basic_salary, 2) }}</td></tr>
-            @foreach($employee->salaryComponents->where('type', 'allowance') as $component)
-                <tr><td>{{ $component->name }}</td><td class="text-right">{{ number_format($component->pivot->amount, 2) }}</td></tr>
+            @foreach($allowances as $entry)
+                <tr><td>{{ $entry['model']->name }}</td><td class="text-right">{{ number_format($entry['amount'], 2) }}</td></tr>
             @endforeach
-            <tr class="font-weight-bold" style="background-color: #e9ecef !important;"><td>Gross Salary</td><td class="text-right">{{ number_format($employee->gross_salary, 2) }}</td></tr>
-            @foreach($employee->salaryComponents->where('type', 'deduction') as $component)
-                <tr><td>{{ $component->name }}</td><td class="text-right text-danger">({{ number_format($component->pivot->amount, 2) }})</td></tr>
+            <tr class="font-weight-bold" style="background-color: #e9ecef !important;"><td>Gross Salary</td><td class="text-right">{{ number_format($computedGross, 2) }}</td></tr>
+            
+            {{-- Deductions (Including Tax) --}}
+            @foreach($deductions as $entry)
+                <tr><td>{{ $entry['model']->name }}</td><td class="text-right text-danger">({{ number_format($entry['amount'], 2) }})</td></tr>
             @endforeach
-            <tr>
-                <td>Income Tax</td>
-                <td class="text-right text-danger">({{ number_format($monthlyTax, 2) }})</td>
-            </tr>
+            
+            {{-- ✅ FIXED: Removed the hardcoded "Income Tax" row --}}
+
             <tr class="font-weight-bold text-white" style="background-color: #343a40 !important;">
                 <td>Net Salary</td>
-                <td class="text-right">{{ number_format($employee->net_salary, 2) }}</td>
+                <td class="text-right">{{ number_format($computedNet, 2) }}</td>
             </tr>
         </table>
 

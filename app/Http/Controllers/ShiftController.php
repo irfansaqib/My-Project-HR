@@ -8,6 +8,14 @@ use Illuminate\Support\Facades\Auth;
 
 class ShiftController extends Controller
 {
+    /**
+     * ✅ NEW: Authorize all resource methods using ShiftPolicy
+     */
+    public function __construct()
+    {
+        $this->authorizeResource(Shift::class, 'shift');
+    }
+
     public function index()
     {
         $shifts = Auth::user()->business->shifts()->paginate(15);
@@ -21,7 +29,6 @@ class ShiftController extends Controller
 
     public function store(Request $request)
     {
-        // ✅ DEFINITIVE FIX: Added validation for the new field.
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'start_time' => 'required|date_format:H:i',
@@ -40,27 +47,20 @@ class ShiftController extends Controller
 
     public function show(Shift $shift)
     {
-        if ($shift->business_id !== Auth::user()->business_id) {
-            abort(403);
-        }
+        // ✅ REMOVED: Manual authorization check
         return view('shifts.show', compact('shift'));
     }
     
     public function edit(Shift $shift)
     {
-        if ($shift->business_id !== Auth::user()->business_id) {
-            abort(403);
-        }
+        // ✅ REMOVED: Manual authorization check
         return view('shifts.edit', compact('shift'));
     }
 
     public function update(Request $request, Shift $shift)
     {
-        if ($shift->business_id !== Auth::user()->business_id) {
-            abort(403);
-        }
+        // ✅ REMOVED: Manual authorization check
 
-        // ✅ DEFINITIVE FIX: Added validation for the new field.
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'start_time' => 'required|date_format:H:i',
@@ -79,13 +79,10 @@ class ShiftController extends Controller
 
     public function destroy(Shift $shift)
     {
-        if ($shift->business_id !== Auth::user()->business_id) {
-            abort(403);
-        }
+        // ✅ REMOVED: Manual authorization check
 
         $shift->delete();
 
         return redirect()->route('shifts.index')->with('success', 'Shift deleted successfully.');
     }
 }
-

@@ -10,6 +10,14 @@ use Illuminate\Validation\Rule;
 
 class DepartmentController extends Controller
 {
+    /**
+     * ✅ NEW: Authorize all resource methods using DepartmentPolicy
+     */
+    public function __construct()
+    {
+        $this->authorizeResource(Department::class, 'department');
+    }
+
     public function index()
     {
         $departments = Department::where('business_id', Auth::user()->business_id)->orderBy('name')->get();
@@ -41,17 +49,13 @@ class DepartmentController extends Controller
 
     public function edit(Department $department)
     {
-        if ($department->business_id !== Auth::user()->business_id) {
-            abort(403);
-        }
+        // ✅ REMOVED: Manual authorization check
         return view('departments.edit', compact('department'));
     }
 
     public function update(Request $request, Department $department)
     {
-        if ($department->business_id !== Auth::user()->business_id) {
-            abort(403);
-        }
+        // ✅ REMOVED: Manual authorization check
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('departments')->where('business_id', Auth::user()->business_id)->ignore($department->id)],
@@ -64,13 +68,10 @@ class DepartmentController extends Controller
 
     public function destroy(Department $department)
     {
-        if ($department->business_id !== Auth::user()->business_id) {
-            abort(403);
-        }
+        // ✅ REMOVED: Manual authorization check
 
         $department->delete();
 
         return Redirect::route('departments.index')->with('success', 'Department deleted successfully!');
     }
 }
-

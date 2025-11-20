@@ -7,10 +7,22 @@
         <h3 class="card-title">Bulk Attendance Sheet</h3>
     </div>
     <div class="card-body">
-        <div class="form-group row align-items-center">
-            <label for="date" class="col-sm-2 col-form-label">Select Date:</label>
-            <div class="col-sm-4">
+        {{-- ✅ MODIFIED: Added a new row for the Shift dropdown --}}
+        <div class="form-row align-items-center mb-3">
+            <div class="col-md-4">
+                <label for="date">Select Date:</label>
                 <input type="date" id="date" class="form-control" value="{{ now()->format('Y-m-d') }}">
+            </div>
+            <div class="col-md-4">
+                <label for="shift_id">Select Shift (Optional):</label>
+                <select id="shift_id" class="form-control">
+                    <option value="">All Employees</option>
+                    @foreach($shifts as $shift)
+                        <option value="{{ $shift->id }}">
+                            {{ $shift->name }} ({{ \Carbon\Carbon::parse($shift->start_time)->format('h:i A') }} - {{ \Carbon\Carbon::parse($shift->end_time)->format('h:i A') }})
+                        </option>
+                    @endforeach
+                </select>
             </div>
         </div>
         
@@ -44,6 +56,7 @@
 <script>
     $(document).ready(function () {
         const dateInput = $('#date');
+        const shiftInput = $('#shift_id'); // Get the new shift dropdown
         const formDateInput = $('#form_date');
         const tbody = $('#attendance-tbody');
 
@@ -74,16 +87,21 @@
 
         function fetchAttendanceData() {
             const selectedDate = dateInput.val();
+            const selectedShiftId = shiftInput.val(); // Get the selected shift ID
             formDateInput.val(selectedDate);
             tbody.html(`<tr><td colspan="4" class="text-center">Loading...</td></tr>`);
 
+            // ✅ MODIFIED: Pass both date and shift_id to the API endpoint
             $.ajax({
                 url: `{{ route('api.employees-for-attendance') }}`,
-                data: { date: selectedDate },
+                data: { 
+                    date: selectedDate,
+                    shift_id: selectedShiftId 
+                },
                 success: function(employees) {
                     tbody.html('');
                     if (employees.length === 0) {
-                        tbody.html(`<tr><td colspan="4" class="text-center text-muted">No active employees found.</td></tr>`);
+                        tbody.html(`<tr><td colspan="4" class="text-center text-muted">No active employees found for this date/shift.</td></tr>`);
                         return;
                     }
                     
@@ -91,7 +109,7 @@
                         const attendance = employee.attendances.length > 0 ? employee.attendances[0] : {};
                         const checkInValue = attendance.check_in ? attendance.check_in.substring(0, 5) : '';
                         const checkOutValue = attendance.check_out ? attendance.check_out.substring(0, 5) : '';
-                        const status = attendance.status || 'absent';
+                        const status = attendance.status || 'present'; // Default to present for bulk marking
 
                         const row = `
                             <tr>
@@ -118,9 +136,12 @@
             });
         }
 
+        // ✅ MODIFIED: Trigger the fetch when either the date or the shift changes
         dateInput.on('change', fetchAttendanceData);
+        shiftInput.on('change', fetchAttendanceData);
+        
+        // Initial load on page ready
         fetchAttendanceData();
     });
 </script>
 @endpush
-

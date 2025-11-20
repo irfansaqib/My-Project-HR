@@ -16,7 +16,6 @@
         .text-left { text-align: left !important; }
         tfoot tr { font-weight: bold; background-color: #e9ecef !important; }
         .signature-area { margin-top: 60px; page-break-inside: avoid; }
-        /* ** NEW RULE TO REMOVE THE SPACE ** */
         .signature-area p { margin-top: 0; }
         
         @media print {
@@ -58,6 +57,7 @@
                     @if($allowanceHeaders->count() > 0)
                         <th colspan="{{ $allowanceHeaders->count() }}">Allowances</th>
                     @endif
+                    <th rowspan="2">Bonus</th> {{-- ✅ NEW: Bonus Column --}}
                     <th rowspan="2">Gross Salary</th>
                     @if($deductionHeaders->count() > 0)
                         <th colspan="{{ $deductionHeaders->count() + 1 }}">Deductions</th>
@@ -81,11 +81,13 @@
                 <tr>
                     <td>{{ $index + 1 }}</td>
                     <td class="text-left">{{ $item->employee->employee_number }} | {{ $item->employee->name }}</td>
-                    <td class="text-left">{{ $item->employee->designation }}</td>
+                     {{-- ✅ DEFINITIVE FIX: Check if designation exists before trying to access its name --}}
+                    <td class="text-left">{{ $item->employee->designation->name ?? 'N/A' }}</td>
                     <td class="text-right">{{ number_format($item->employee->basic_salary, 0) }}</td>
                     @foreach($allowanceHeaders as $header)
                         <td class="text-right">{{ number_format($item->allowances_breakdown[$header] ?? 0, 0) }}</td>
                     @endforeach
+                    <td class="text-right">{{ number_format($item->bonus, 0) }}</td> {{-- ✅ NEW: Bonus Value --}}
                     <td class="text-right">{{ number_format($item->gross_salary, 0) }}</td>
                     @foreach($deductionHeaders as $header)
                         <td class="text-right">{{ number_format($item->deductions_breakdown[$header] ?? 0, 0) }}</td>
@@ -102,11 +104,12 @@
                     <td colspan="3">Total</td>
                     <td class="text-right">{{ number_format($salarySheet->items->sum('employee.basic_salary'), 0) }}</td>
                     @foreach($allowanceHeaders as $header)
-                        <td class="text-right">{{ number_format($salarySheet->items->sum(function($item) use ($header) { return $item->allowances_breakdown[$header] ?? 0; }), 0) }}</td>
+                        <td class="text-right">{{ number_format($salarySheet->items->sum(fn($item) => $item->allowances_breakdown[$header] ?? 0), 0) }}</td>
                     @endforeach
+                    <td class="text-right">{{ number_format($salarySheet->items->sum('bonus'), 0) }}</td> {{-- ✅ NEW: Bonus Total --}}
                     <td class="text-right">{{ number_format($salarySheet->items->sum('gross_salary'), 0) }}</td>
                     @foreach($deductionHeaders as $header)
-                         <td class="text-right">{{ number_format($salarySheet->items->sum(function($item) use ($header) { return $item->deductions_breakdown[$header] ?? 0; }), 0) }}</td>
+                         <td class="text-right">{{ number_format($salarySheet->items->sum(fn($item) => $item->deductions_breakdown[$header] ?? 0), 0) }}</td>
                     @endforeach
                     <td class="text-right">{{ number_format($salarySheet->items->sum('income_tax'), 0) }}</td>
                     <td class="text-right">{{ number_format($salarySheet->items->sum('net_salary'), 0) }}</td>
@@ -116,7 +119,6 @@
             </tfoot>
         </table>
 
-        {{-- ** ALIGNMENT AND SPACING ADJUSTED ** --}}
         <div class="d-flex justify-content-between signature-area">
             <div class="text-center">
                 <p>_________________________</p>
