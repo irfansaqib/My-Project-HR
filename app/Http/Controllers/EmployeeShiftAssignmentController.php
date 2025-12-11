@@ -15,7 +15,6 @@ class EmployeeShiftAssignmentController extends Controller
     {
         $business = Auth::user()->business;
         $employees = $business->employees()->where('status', 'active')->orderBy('name')->get();
-        // ** THIS LINE IS CORRECTED **
         $shifts = $business->shifts()->orderBy('name')->get();
 
         return view('shift-assignments.create', compact('employees', 'shifts'));
@@ -40,6 +39,7 @@ class EmployeeShiftAssignmentController extends Controller
                     ],
                     [
                         'start_date' => $validated['start_date'],
+                        // ✅ FIX: Safe access using null coalescing operator
                         'end_date' => $validated['end_date'] ?? null,
                     ]
                 );

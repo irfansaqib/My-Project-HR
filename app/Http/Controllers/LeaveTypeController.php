@@ -8,79 +8,90 @@ use Illuminate\Support\Facades\Auth;
 
 class LeaveTypeController extends Controller
 {
-    /**
-     * ✅ NEW: Authorize all resource methods using LeaveTypePolicy
-     */
     public function __construct()
     {
         $this->authorizeResource(LeaveType::class, 'leave_type');
     }
 
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
         $leaveTypes = Auth::user()->business->leaveTypes()->paginate(15);
         return view('leave-types.index', compact('leaveTypes'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
         return view('leave-types.create');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'is_encashable' => 'nullable|boolean',
+            'encashment_variable' => 'required_if:is_encashable,1|in:basic_salary,gross_salary',
+            'encashment_divisor' => 'required_if:is_encashable,1|integer|min:1',
+            'min_balance_required' => 'nullable|integer|min:0',
+            'max_days_encashable' => 'nullable|integer|min:0',
         ]);
 
-        Auth::user()->business->leaveTypes()->create($request->only('name'));
+        $data = $request->only('name');
+        
+        // Handle Policy Fields
+        $data['is_encashable'] = $request->boolean('is_encashable');
+        if ($data['is_encashable']) {
+            $data['encashment_variable'] = $request->encashment_variable;
+            $data['encashment_divisor'] = $request->encashment_divisor;
+            $data['min_balance_required'] = $request->min_balance_required ?? 0;
+            $data['max_days_encashable'] = $request->max_days_encashable ?? 0;
+        }
+
+        Auth::user()->business->leaveTypes()->create($data);
 
         return redirect()->route('leave-types.index')->with('success', 'Leave Type created successfully.');
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(LeaveType $leaveType)
     {
-        // ✅ REMOVED: Manual authorization check
         return view('leave-types.edit', compact('leaveType'));
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, LeaveType $leaveType)
     {
-        // ✅ REMOVED: Manual authorization check
-
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'is_encashable' => 'nullable|boolean',
+            'encashment_variable' => 'required_if:is_encashable,1|in:basic_salary,gross_salary',
+            'encashment_divisor' => 'required_if:is_encashable,1|integer|min:1',
+            'min_balance_required' => 'nullable|integer|min:0',
+            'max_days_encashable' => 'nullable|integer|min:0',
         ]);
 
-        $leaveType->update($request->only('name'));
+        $data = $request->only('name');
+        
+        // Handle Policy Fields
+        $data['is_encashable'] = $request->boolean('is_encashable');
+        if ($data['is_encashable']) {
+            $data['encashment_variable'] = $request->encashment_variable;
+            $data['encashment_divisor'] = $request->encashment_divisor;
+            $data['min_balance_required'] = $request->min_balance_required ?? 0;
+            $data['max_days_encashable'] = $request->max_days_encashable ?? 0;
+        } else {
+            // Reset logic if turned off
+            $data['encashment_variable'] = 'basic_salary';
+            $data['encashment_divisor'] = 30;
+            $data['min_balance_required'] = 0;
+            $data['max_days_encashable'] = 0;
+        }
+
+        $leaveType->update($data);
 
         return redirect()->route('leave-types.index')->with('success', 'Leave Type updated successfully.');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(LeaveType $leaveType)
     {
-        // ✅ REMOVED: Manual authorization check
-        
         $leaveType->delete();
-
         return redirect()->route('leave-types.index')->with('success', 'Leave Type deleted successfully.');
     }
 }

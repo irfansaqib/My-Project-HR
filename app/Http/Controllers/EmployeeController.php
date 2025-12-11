@@ -51,29 +51,23 @@ class EmployeeController extends Controller
 
     public function store(Request $request)
     {
-        // 1. Sanitize Salary
         $request->merge([
             'basic_salary' => str_replace(',', '', $request->input('basic_salary')),
         ]);
 
-        // 2. Build Validation Rules
         $rules = [
             'name'         => 'required|string|max:255',
             'cnic'         => 'required|string|max:30',
             'phone'        => 'required|string|max:20',
             'basic_salary' => 'required|numeric|min:0',
             'create_user_account' => 'nullable|boolean',
-            
-            // ✅ PASSWORD FIX: Completely ignore password unless checkbox is checked
-            'password' => 'exclude_unless:create_user_account,1|required|string|min:8|confirmed',
+            'email' => 'nullable|email|unique:employees,email', 
         ];
 
-        // 3. Conditional Email Rules
         if ($request->boolean('create_user_account')) {
-            // If creating login: Email is mandatory and must be unique in USERS table
             $rules['email'] = 'required|email|unique:users,email';
+            $rules['password'] = 'required|string|min:8|confirmed';
         } else {
-            // If just employee: Email is optional, but if provided, must be unique in EMPLOYEES table
             $rules['email'] = 'nullable|email|unique:employees,email';
         }
 
@@ -90,7 +84,6 @@ class EmployeeController extends Controller
                 'gross_salary', 'net_salary'
             ]));
 
-            // Generate ID
             if ($businessId) {
                 $employee->employee_number = $this->generateEmployeeNumber($businessId);
             }
@@ -134,19 +127,18 @@ class EmployeeController extends Controller
             $employee->net_salary = $employee->gross_salary - $deductionsTotal;
             $employee->save();
 
-            // Initial Approved Structure
+            // ✅ FIX: Remove json_encode() - Let Model casting handle it
             SalaryStructure::create([
                 'employee_id' => $employee->id,
                 'effective_date' => $employee->joining_date ?? now(),
                 'basic_salary' => $employee->basic_salary,
-                'salary_components' => json_encode($salaryStructureJson),
+                'salary_components' => $salaryStructureJson, // Passed as array
                 'status' => 'approved',
                 'created_by' => Auth::id(),
                 'approved_by' => Auth::id(),
                 'approved_at' => now(),
             ]);
 
-            // --- Leaves ---
             $leaves = $request->input('leaves', []);
             if (!empty($leaves)) {
                 $leaveSync = [];
@@ -156,11 +148,9 @@ class EmployeeController extends Controller
                 $employee->leaveTypes()->sync($leaveSync);
             }
 
-            // --- Quals & Exp ---
             $this->syncQualifications($employee, $request->input('qualifications', []));
             $this->syncExperiences($employee, $request->input('experiences', []));
 
-            // --- User Account ---
             if ($request->boolean('create_user_account') && $request->email) {
                 $user = User::create([
                     'name' => $employee->name,
@@ -184,7 +174,6 @@ class EmployeeController extends Controller
 
     public function edit(Employee $employee)
     {
-        // Self-healing ID
         if (empty($employee->employee_number) && $employee->business_id) {
             $employee->employee_number = $this->generateEmployeeNumber($employee->business_id);
             $employee->save();
@@ -211,9 +200,12 @@ class EmployeeController extends Controller
 
         if ($latestStructure) {
             $employee->basic_salary = $latestStructure->basic_salary;
-            $componentsInJson = json_decode($latestStructure->salary_components, true);
-            if (is_array($componentsInJson)) {
-                foreach ($componentsInJson as $comp) {
+            // Handle potential string vs array from DB
+            $comps = $latestStructure->salary_components;
+            if (is_string($comps)) $comps = json_decode($comps, true);
+            
+            if (is_array($comps)) {
+                foreach ($comps as $comp) {
                     $componentModel = $allComponents->get($comp['name']);
                     if ($componentModel) {
                         $componentAmounts[$componentModel->id] = (float) $comp['amount'];
@@ -363,15 +355,12 @@ class EmployeeController extends Controller
     public function destroy(Employee $employee)
     {
         try {
-            // Delete Associated User Account
             if ($employee->user) {
                 $employee->user->delete();
             }
-
             if ($employee->photo_path) Storage::disk('public')->delete($employee->photo_path);
             if ($employee->attachment_path) Storage::disk('public')->delete($employee->attachment_path);
             $employee->delete();
-            
             return redirect()->route('employees.index')->with('success', 'Employee deleted successfully.');
         } catch (\Throwable $e) {
             return back()->withErrors('Error deleting employee: ' . $e->getMessage());

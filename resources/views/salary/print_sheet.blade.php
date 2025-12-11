@@ -54,26 +54,34 @@
                     <th rowspan="2" style="width: 20%;">Employee</th>
                     <th rowspan="2">Designation</th>
                     <th rowspan="2">Basic Salary</th>
+                    
+                    {{-- Allowances Header --}}
                     @if($allowanceHeaders->count() > 0)
                         <th colspan="{{ $allowanceHeaders->count() }}">Allowances</th>
                     @endif
-                    <th rowspan="2">Bonus</th> {{-- ✅ NEW: Bonus Column --}}
+                    
+                    <th rowspan="2">Bonus</th>
                     <th rowspan="2">Gross Salary</th>
+                    
+                    {{-- Deductions Header --}}
                     @if($deductionHeaders->count() > 0)
-                        <th colspan="{{ $deductionHeaders->count() + 1 }}">Deductions</th>
+                        <th colspan="{{ $deductionHeaders->count() }}">Deductions</th>
                     @endif
+                    
+                    {{-- ✅ FIX: Removed hardcoded Income Tax Header --}}
+                    
                     <th rowspan="2">Net Salary</th>
                     <th rowspan="2" style="width: 12%;">Bank Account</th>
                     <th rowspan="2" style="width: 8%;">Signature</th>
                 </tr>
                 <tr>
+                    {{-- Dynamic Sub-headers --}}
                     @foreach($allowanceHeaders as $header)
                         <th>{{ $header }}</th>
                     @endforeach
                     @foreach($deductionHeaders as $header)
                         <th>{{ $header }}</th>
                     @endforeach
-                    <th>Income Tax</th>
                 </tr>
             </thead>
             <tbody>
@@ -81,18 +89,22 @@
                 <tr>
                     <td>{{ $index + 1 }}</td>
                     <td class="text-left">{{ $item->employee->employee_number }} | {{ $item->employee->name }}</td>
-                     {{-- ✅ DEFINITIVE FIX: Check if designation exists before trying to access its name --}}
-                    <td class="text-left">{{ $item->employee->designation->name ?? 'N/A' }}</td>
+                    <td class="text-left">{{ $item->employee->designationRelation->name ?? 'N/A' }}</td>
                     <td class="text-right">{{ number_format($item->employee->basic_salary, 0) }}</td>
+                    
                     @foreach($allowanceHeaders as $header)
                         <td class="text-right">{{ number_format($item->allowances_breakdown[$header] ?? 0, 0) }}</td>
                     @endforeach
-                    <td class="text-right">{{ number_format($item->bonus, 0) }}</td> {{-- ✅ NEW: Bonus Value --}}
+                    
+                    <td class="text-right">{{ number_format($item->bonus, 0) }}</td>
                     <td class="text-right">{{ number_format($item->gross_salary, 0) }}</td>
+                    
                     @foreach($deductionHeaders as $header)
                         <td class="text-right">{{ number_format($item->deductions_breakdown[$header] ?? 0, 0) }}</td>
                     @endforeach
-                    <td class="text-right">{{ number_format($item->income_tax, 0) }}</td>
+                    
+                    {{-- ✅ FIX: Removed hardcoded Income Tax Cell --}}
+
                     <td class="text-right font-weight-bold">{{ number_format($item->net_salary, 0) }}</td>
                     <td class="text-left">{{ $item->employee->bank_account_number ?? 'N/A' }}</td>
                     <td></td>
@@ -103,15 +115,20 @@
                 <tr>
                     <td colspan="3">Total</td>
                     <td class="text-right">{{ number_format($salarySheet->items->sum('employee.basic_salary'), 0) }}</td>
+                    
                     @foreach($allowanceHeaders as $header)
                         <td class="text-right">{{ number_format($salarySheet->items->sum(fn($item) => $item->allowances_breakdown[$header] ?? 0), 0) }}</td>
                     @endforeach
-                    <td class="text-right">{{ number_format($salarySheet->items->sum('bonus'), 0) }}</td> {{-- ✅ NEW: Bonus Total --}}
+                    
+                    <td class="text-right">{{ number_format($salarySheet->items->sum('bonus'), 0) }}</td>
                     <td class="text-right">{{ number_format($salarySheet->items->sum('gross_salary'), 0) }}</td>
+                    
                     @foreach($deductionHeaders as $header)
                          <td class="text-right">{{ number_format($salarySheet->items->sum(fn($item) => $item->deductions_breakdown[$header] ?? 0), 0) }}</td>
                     @endforeach
-                    <td class="text-right">{{ number_format($salarySheet->items->sum('income_tax'), 0) }}</td>
+                    
+                    {{-- ✅ FIX: Removed hardcoded Income Tax Total --}}
+
                     <td class="text-right">{{ number_format($salarySheet->items->sum('net_salary'), 0) }}</td>
                     <td></td>
                     <td></td>

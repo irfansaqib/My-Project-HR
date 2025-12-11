@@ -55,8 +55,6 @@ class AttendanceController extends Controller
         return view('attendances.index', compact('attendances', 'filterDate', 'shifts', 'filterShiftId'));
     }
 
-    // ... all other methods (create, store, edit, update, etc.) remain unchanged ...
-
     public function create()
     {
         $employees = Auth::user()->business->employees()->orderBy('name')->get();
@@ -194,5 +192,34 @@ class AttendanceController extends Controller
             ->orderBy('name')->get();
             
         return response()->json($employees);
+    }
+
+    /**
+     * ✅ NEW: Employee Self-Service - My Attendance
+     */
+    public function myAttendance(Request $request)
+    {
+        $employee = Auth::user()->employee;
+        if (!$employee) abort(403, 'No employee profile linked.');
+
+        // Default to current month if not filtered
+        $month = $request->month ? Carbon::parse($request->month) : Carbon::now();
+        $start = $month->copy()->startOfMonth();
+        $end = $month->copy()->endOfMonth();
+
+        $attendances = Attendance::where('employee_id', $employee->id)
+            ->whereBetween('date', [$start, $end])
+            ->orderBy('date', 'desc')
+            ->get();
+
+        // Calculate stats for the view
+        $stats = [
+            'present' => $attendances->whereIn('status', ['present', 'late', 'half-day'])->count(),
+            'late' => $attendances->where('status', 'late')->count(),
+            'absent' => $attendances->where('status', 'absent')->count(),
+            'leaves' => $attendances->where('status', 'leave')->count(),
+        ];
+
+        return view('attendances.my_attendance', compact('attendances', 'month', 'stats'));
     }
 }

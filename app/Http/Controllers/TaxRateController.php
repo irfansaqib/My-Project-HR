@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers; // CORRECTED: Replaced hyphen with backslash
+namespace App\Http\Controllers;
 
 use App\Models\TaxRate;
 use Illuminate\Http\Request;
@@ -74,6 +74,7 @@ class TaxRateController extends Controller
         ]);
         
         $fromDate = $validated['effective_from_date'];
+        // ✅ FIX: Safe access
         $toDate = $validated['effective_to_date'] ?? '9999-12-31';
 
         $query = TaxRate::where('business_id', $businessId)

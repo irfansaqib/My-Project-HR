@@ -1,102 +1,181 @@
-<div class="alert alert-info">
-    <strong>Note:</strong> Income Tax is calculated automatically by the system based on the defined tax slabs.
-    You can optionally mark one <strong>deduction</strong> as the <strong>Tax Deduction</strong> for reporting purposes.
-</div>
+{{-- resources/views/salary-components/_form.blade.php --}}
+@if ($errors->any())
+    <div class="alert alert-danger">
+        <ul class="mb-0 pl-3">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
 
 <div class="row">
     <div class="col-md-6 form-group">
         <label for="name">Component Name <span class="text-danger">*</span></label>
-        <input type="text" name="name" class="form-control @error('name') is-invalid @enderror" id="name"
-               value="{{ old('name', $salaryComponent->name ?? '') }}" required>
-        @error('name') <div class="invalid-feedback">{{ $message }}</div> @enderror
+        <input type="text" name="name" class="form-control" id="name" value="{{ old('name', $salaryComponent->name ?? '') }}" required placeholder="e.g. Medical Allowance">
     </div>
     <div class="col-md-6 form-group">
         <label for="type">Component Type <span class="text-danger">*</span></label>
-        <select name="type" id="type" class="form-control @error('type') is-invalid @enderror" required>
-            <option value="allowance" @if(old('type', $salaryComponent->type ?? '') == 'allowance') selected @endif>Allowance</option>
-            <option value="deduction" @if(old('type', $salaryComponent->type ?? '') == 'deduction') selected @endif>Deduction</option>
+        <select name="type" id="type" class="form-control" required>
+            <option value="allowance" @if(old('type', $salaryComponent->type ?? '') == 'allowance') selected @endif>Allowance (Earnings)</option>
+            <option value="deduction" @if(old('type', $salaryComponent->type ?? '') == 'deduction') selected @endif>Deduction (Recovery)</option>
         </select>
-        @error('type') <div class="invalid-feedback">{{ $message }}</div> @enderror
     </div>
 </div>
 
-{{-- ✅ New: Visible only when type = deduction --}}
-<div id="tax-component-section" class="form-check mt-3 {{ old('type', $salaryComponent->type ?? '') == 'deduction' ? '' : 'd-none' }}">
-    <input type="checkbox" name="is_tax_component" id="is_tax_component" class="form-check-input"
-           value="1" {{ old('is_tax_component', $salaryComponent->is_tax_component ?? false) ? 'checked' : '' }}>
-    <label for="is_tax_component" class="form-check-label">
-        Mark this deduction as <strong>Tax Deduction</strong> (only one allowed)
-    </label>
-</div>
-
-<hr>
-<h5 class="mt-3">Tax Settings (For Allowances)</h5>
-<div class="form-check">
-    <input type="checkbox" name="is_tax_exempt" id="is_tax_exempt" class="form-check-input"
-           value="1" @if(old('is_tax_exempt', $salaryComponent->is_tax_exempt ?? false)) checked @endif>
-    <label for="is_tax_exempt" class="form-check-label">This allowance is tax-exempt</label>
-</div>
-
-<div id="exemption-details" class="{{ old('is_tax_exempt', $salaryComponent->is_tax_exempt ?? false) ? '' : 'd-none' }} mt-3">
-    <div class="row">
-        <div class="col-md-6 form-group">
-            <label for="exemption_type">Exemption Type</label>
-            <select name="exemption_type" id="exemption_type" class="form-control">
-                <option value="percentage_of_basic"
-                        @if(old('exemption_type', $salaryComponent->exemption_type ?? '') == 'percentage_of_basic') selected @endif>
-                    Percentage of Basic Salary
-                </option>
-            </select>
+{{-- ==========================
+     ALLOWANCE SETTINGS
+=========================== --}}
+<div id="allowance-settings" class="d-none">
+    <div class="card card-outline card-success">
+        <div class="card-header">
+            <h3 class="card-title">Tax Exemption Settings</h3>
         </div>
-        <div class="col-md-6 form-group">
-            <label for="exemption_value">Exemption Percentage (%)</label>
-            <input type="number" step="0.01" name="exemption_value" id="exemption_value"
-                   class="form-control"
-                   value="{{ old('exemption_value', $salaryComponent->exemption_value ?? '') }}">
+        <div class="card-body">
+            <div class="form-group">
+                <div class="custom-control custom-switch">
+                    <input type="checkbox" class="custom-control-input" id="is_tax_exempt" name="is_tax_exempt" value="1"
+                        {{ old('is_tax_exempt', $salaryComponent->is_tax_exempt ?? false) ? 'checked' : '' }}>
+                    <label class="custom-control-label" for="is_tax_exempt">Is this Allowance Tax Exempt?</label>
+                </div>
+            </div>
+
+            <div id="exemption-details" class="{{ old('is_tax_exempt', $salaryComponent->is_tax_exempt ?? false) ? '' : 'd-none' }} mt-3 p-3 bg-light rounded border">
+                <div class="row">
+                    <div class="col-md-6 form-group">
+                        <label for="exemption_type">Exemption Rule</label>
+                        <select name="exemption_type" id="exemption_type" class="form-control">
+                            <option value="percentage_of_basic" @if(old('exemption_type', $salaryComponent->exemption_type ?? '') == 'percentage_of_basic') selected @endif>Percentage of Basic Salary</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 form-group">
+                        <label for="exemption_value">Percentage Value (%)</label>
+                        <input type="number" step="0.01" name="exemption_value" id="exemption_value" class="form-control" 
+                               value="{{ old('exemption_value', $salaryComponent->exemption_value ?? '') }}" placeholder="e.g. 10">
+                    </div>
+                </div>
+                <small class="text-muted"><i class="fas fa-info-circle"></i> Example: Medical Allowance is often exempt up to 10% of Basic Salary.</small>
+            </div>
         </div>
     </div>
-    <p class="text-muted">
-        <small>
-            Example: If House Rent is exempt up to 45% of Basic Salary, select 'Percentage of Basic Salary'
-            and enter '45' as the value.
-        </small>
-    </p>
+</div>
+
+{{-- ==========================
+     DEDUCTION SETTINGS
+=========================== --}}
+<div id="deduction-settings" class="d-none">
+    <div class="card card-outline card-danger">
+        <div class="card-header">
+            <h3 class="card-title">Deduction Category</h3>
+        </div>
+        <div class="card-body">
+            <div class="form-group">
+                <label class="d-block mb-3">Select the nature of this deduction:</label>
+
+                {{-- 1. Standard --}}
+                <div class="custom-control custom-radio mb-2">
+                    <input type="radio" id="cat_standard" name="deduction_category" class="custom-control-input" value="standard" checked>
+                    <label class="custom-control-label" for="cat_standard">
+                        <strong>Standard / Manual Deduction</strong>
+                        <small class="d-block text-muted">e.g. Late Fines, Penalties</small>
+                    </label>
+                </div>
+                
+                {{-- ✅ 5. Contributory Fund --}}
+                <div class="custom-control custom-radio mb-2">
+                    <input type="radio" id="cat_contributory" name="deduction_category" class="custom-control-input" value="contributory"
+                        {{ old('is_contributory', $salaryComponent->is_contributory ?? false) ? 'checked' : '' }}>
+                    <label class="custom-control-label" for="cat_contributory">
+                        <strong>Contributory Fund</strong>
+                        <small class="d-block text-muted">e.g. Provident Fund, EOBI. Linked to the <em>Funds</em> module.</small>
+                    </label>
+                </div>
+
+                {{-- 2. Income Tax --}}
+                <div class="custom-control custom-radio mb-2">
+                    <input type="radio" id="cat_tax" name="deduction_category" class="custom-control-input" value="tax"
+                        {{ old('is_tax_component', $salaryComponent->is_tax_component ?? false) ? 'checked' : '' }}>
+                    <label class="custom-control-label" for="cat_tax">
+                        <strong>Income Tax</strong>
+                        <small class="d-block text-muted">Marks this as the primary Tax deduction column.</small>
+                    </label>
+                </div>
+
+                {{-- 3. Salary Advance --}}
+                <div class="custom-control custom-radio mb-2">
+                    <input type="radio" id="cat_advance" name="deduction_category" class="custom-control-input" value="advance"
+                        {{ old('is_advance', $salaryComponent->is_advance ?? false) ? 'checked' : '' }}>
+                    <label class="custom-control-label" for="cat_advance">
+                        <strong>Salary Advance</strong>
+                        <small class="d-block text-muted">Linked to the <em>Loans & Advances</em> module.</small>
+                    </label>
+                </div>
+
+                {{-- 4. Loan --}}
+                <div class="custom-control custom-radio">
+                    <input type="radio" id="cat_loan" name="deduction_category" class="custom-control-input" value="loan"
+                        {{ old('is_loan', $salaryComponent->is_loan ?? false) ? 'checked' : '' }}>
+                    <label class="custom-control-label" for="cat_loan">
+                        <strong>Long-term Loan Installment</strong>
+                        <small class="d-block text-muted">Linked to the <em>Loans & Advances</em> module.</small>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {{-- Hidden inputs to map radio to booleans for controller --}}
+    <input type="hidden" name="is_tax_component" id="input_is_tax_component" value="0">
+    <input type="hidden" name="is_advance" id="input_is_advance" value="0">
+    <input type="hidden" name="is_loan" id="input_is_loan" value="0">
+    <input type="hidden" name="is_contributory" id="input_is_contributory" value="0"> {{-- ✅ Added --}}
 </div>
 
 @push('scripts')
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const typeSelect = document.getElementById('type');
-    const taxComponentSection = document.getElementById('tax-component-section');
-    const isExemptCheckbox = document.getElementById('is_tax_exempt');
-    const exemptionDetailsDiv = document.getElementById('exemption-details');
-
-    // Toggle visibility of Tax Deduction checkbox based on type
-    function toggleTaxComponentSection() {
-        if (typeSelect.value === 'deduction') {
-            taxComponentSection.classList.remove('d-none');
+$(function() {
+    // Toggle Sections based on Type
+    function toggleSections() {
+        let type = $('#type').val();
+        
+        if (type === 'allowance') {
+            $('#allowance-settings').removeClass('d-none');
+            $('#deduction-settings').addClass('d-none');
         } else {
-            taxComponentSection.classList.add('d-none');
-            document.getElementById('is_tax_component').checked = false;
+            $('#allowance-settings').addClass('d-none');
+            $('#deduction-settings').removeClass('d-none');
         }
     }
 
-    // Toggle exemption details for allowances
-    function toggleExemptionDetails() {
-        if (isExemptCheckbox.checked) {
-            exemptionDetailsDiv.classList.remove('d-none');
-        } else {
-            exemptionDetailsDiv.classList.add('d-none');
-        }
-    }
+    // Toggle Exemption Details
+    $('#is_tax_exempt').change(function() {
+        if(this.checked) $('#exemption-details').removeClass('d-none');
+        else $('#exemption-details').addClass('d-none');
+    });
 
-    // Initial states
-    toggleTaxComponentSection();
-    toggleExemptionDetails();
+    // Map Deduction Category Radio to Hidden Inputs
+    function updateHiddenInputs() {
+        // Reset all
+        $('#input_is_tax_component').val(0);
+        $('#input_is_advance').val(0);
+        $('#input_is_loan').val(0);
+        $('#input_is_contributory').val(0);
+
+        let category = $('input[name="deduction_category"]:checked').val();
+
+        if (category === 'tax') $('#input_is_tax_component').val(1);
+        if (category === 'advance') $('#input_is_advance').val(1);
+        if (category === 'loan') $('#input_is_loan').val(1);
+        if (category === 'contributory') $('#input_is_contributory').val(1); // ✅ Added
+    }
 
     // Listeners
-    typeSelect.addEventListener('change', toggleTaxComponentSection);
-    isExemptCheckbox.addEventListener('change', toggleExemptionDetails);
+    $('#type').change(toggleSections);
+    $('input[name="deduction_category"]').change(updateHiddenInputs);
+
+    // Initialization
+    toggleSections();
+    updateHiddenInputs();
 });
 </script>
 @endpush

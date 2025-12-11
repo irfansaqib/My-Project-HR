@@ -64,4 +64,18 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Employee::class);
     }
+
+    public function createdTasks()
+    {
+        return $this->hasMany(Task::class, 'created_by');
+    }
+
+    /**
+     * Get the tasks assigned TO this user (if they are also an employee).
+     * This might be useful later, but 'createdTasks' fixes your current error.
+     */
+    public function employeeProfile()
+    {
+        return $this->hasOne(Employee::class, 'user_id'); // Assuming user_id exists in employees table
+    }
 }
