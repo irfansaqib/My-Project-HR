@@ -13,7 +13,10 @@
                     @csrf
                     @method('PUT')
                     
-                    {{-- Include the Partial --}}
+                    {{-- 
+                        Pass the $client object to the partial.
+                        $employees is passed from the Controller to the View automatically.
+                    --}}
                     @include('clients._form', ['client' => $client])
                 </form>
             </div>

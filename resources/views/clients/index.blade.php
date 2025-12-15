@@ -5,9 +5,20 @@
 <div class="card shadow-sm">
     <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
         <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-users-cog mr-2"></i> Client List</h5>
-        <a href="{{ route('clients.create') }}" class="btn btn-primary btn-sm shadow-sm">
-            <i class="fas fa-plus-circle mr-1"></i> Add New Client
-        </a>
+        
+        <div>
+            {{-- 
+                ✅ HANDSHAKE LINK GENERATOR
+                Updated to check for 'portal_code' OR 'business_code' to prevent the error.
+            --}}
+            <button onclick="copyPortalLink()" class="btn btn-info btn-sm shadow-sm mr-2" title="Copy Client Registration Link">
+                <i class="fas fa-link mr-1"></i> Copy Embed Link
+            </button>
+
+            <a href="{{ route('clients.create') }}" class="btn btn-primary btn-sm shadow-sm">
+                <i class="fas fa-plus-circle mr-1"></i> Add New Client
+            </a>
+        </div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -26,7 +37,13 @@
                     <tr>
                         <td>
                             <strong class="text-dark">{{ $client->business_name }}</strong><br>
-                            <small class="text-muted"><i class="fas fa-id-card mr-1"></i> {{ $client->ntn_cnic }}</small>
+                            <small class="text-muted">
+                                @if($client->business_type == 'Individual')
+                                    <i class="fas fa-user mr-1"></i> Individual
+                                @else
+                                    <i class="fas fa-building mr-1"></i> Company
+                                @endif
+                            </small>
                         </td>
                         <td>
                             {{ $client->contact_person }} <br>
@@ -53,14 +70,27 @@
                         </td>
                         <td class="text-center">
                             <div class="btn-group">
-                                <button type="button" class="btn btn-sm btn-light dropdown-toggle" data-toggle="dropdown">
+                                <button type="button" class="btn btn-sm btn-light dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                     Options
                                 </button>
                                 <div class="dropdown-menu dropdown-menu-right">
-                                    <a class="dropdown-item" href="#"><i class="fas fa-eye mr-2 text-info"></i> View Profile</a>
-                                    <a class="dropdown-item" href="#"><i class="fas fa-edit mr-2 text-warning"></i> Edit Details</a>
+                                    <a class="dropdown-item" href="{{ route('clients.show', $client->id) }}">
+                                        <i class="fas fa-eye mr-2 text-info"></i> View Profile
+                                    </a>
+                                    
+                                    <a class="dropdown-item" href="{{ route('clients.edit', $client->id) }}">
+                                        <i class="fas fa-edit mr-2 text-warning"></i> Edit Details
+                                    </a>
+                                    
                                     <div class="dropdown-divider"></div>
-                                    <a class="dropdown-item text-danger" href="#"><i class="fas fa-trash mr-2"></i> Delete</a>
+                                    
+                                    <a class="dropdown-item text-danger" href="#" onclick="if(confirm('Are you sure you want to delete this client?')){ document.getElementById('delete-client-{{ $client->id }}').submit(); } return false;">
+                                        <i class="fas fa-trash mr-2"></i> Delete
+                                    </a>
+                                    <form id="delete-client-{{ $client->id }}" action="{{ route('clients.destroy', $client->id) }}" method="POST" style="display: none;">
+                                        @csrf
+                                        @method('DELETE')
+                                    </form>
                                 </div>
                             </div>
                         </td>
@@ -121,13 +151,45 @@
     </div>
 </div>
 
+{{-- 
+    HIDDEN INPUT FOR URL GENERATION 
+    FIX: Checking for BOTH 'portal_code' and 'business_code' to avoid missing code error.
+--}}
+<input type="hidden" id="portalInviteLink" 
+       value="{{ route('client.register') }}?code={{ Auth::user()->business->portal_code ?? Auth::user()->business->business_code ?? '' }}">
+
 <script>
     function openAssignModal(clientId, clientName) {
         let form = document.getElementById('assignForm');
-        // Dynamically set the route for the selected client
         form.action = "{{ url('clients') }}/" + clientId + "/assign";
         document.getElementById('modalClientName').innerText = clientName;
-        $('#assignModal').modal('show');
+        
+        // jQuery / Bootstrap 5 fallback check
+        if (typeof $ !== 'undefined') {
+            $('#assignModal').modal('show');
+        } else {
+            let myModal = new bootstrap.Modal(document.getElementById('assignModal'));
+            myModal.show();
+        }
+    }
+
+    function copyPortalLink() {
+        var copyText = document.getElementById("portalInviteLink");
+        var val = copyText.value;
+
+        // Validation: If the code parameter is empty
+        if(val.endsWith('code=') || val.endsWith('code=')) {
+            // FIX: More detailed alert so you know exactly what is missing
+            alert('⚠️ CRITICAL ERROR: Business Code Missing.\n\nIt seems your Business Profile does not have a "Portal Code" or "Business Code" generated yet.\n\nPlease go to Settings > Business Profile and click "Generate Code".');
+            return;
+        }
+
+        navigator.clipboard.writeText(val).then(function() {
+            alert('✅ Embed Link Copied!\n\nLink: ' + val + '\n\nYou can now paste this URL into your website buttons.');
+        }, function(err) {
+            console.error('Could not copy text: ', err);
+            prompt("Copy this link manually:", val);
+        });
     }
 </script>
 @endsection

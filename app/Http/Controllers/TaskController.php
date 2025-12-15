@@ -12,6 +12,24 @@ use Illuminate\Support\Facades\DB;
 
 class TaskController extends Controller
 {
+    public function __construct()
+{
+    // 1. View & List Access
+    $this->middleware('permission:task-list')->only(['index', 'show', 'myTasks']);
+    
+    // 2. Creation Access
+    $this->middleware('permission:task-create')->only(['create', 'store']);
+    
+    // 3. Edit/Update Access
+    $this->middleware('permission:task-edit')->only(['edit', 'update', 'extendDueDate']);
+    
+    // 4. Delete Access
+    $this->middleware('permission:task-delete')->only(['destroy']);
+    
+    // 5. Special Reporting Access
+    $this->middleware('permission:task-report')->only(['report']);
+}
+    
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -161,6 +179,45 @@ class TaskController extends Controller
         $task->load(['messages.sender', 'client', 'assignedEmployee', 'category']);
         return view('tasks.show', compact('task'));
     }
+
+    public function extendDueDate(Request $request, Task $task)
+    {
+        // 1. Validation
+        $request->validate([
+            'new_due_date' => 'required|date|after:today',
+            'reason' => 'required|string|max:255'
+        ]);
+
+        // 2. Authorization (Only Admin or Creator can extend)
+        if (!auth()->user()->hasRole(['Admin', 'Owner']) && auth()->id() !== $task->created_by) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        // 3. Record History
+        \App\Models\TaskExtension::create([
+            'task_id' => $task->id,
+            'changed_by' => auth()->id(),
+            'old_due_date' => $task->due_date,
+            'new_due_date' => $request->new_due_date,
+            'reason' => $request->reason
+        ]);
+
+        // 4. Update Task
+        $task->update([
+            'due_date' => $request->new_due_date
+        ]);
+
+        // 5. Add a system message to chat (Optional but good for visibility)
+        $task->messages()->create([
+            'sender_id' => auth()->id(),
+            'message' => "📅 DUE DATE EXTENDED: From " . 
+                         \Carbon\Carbon::parse($task->getOriginal('due_date'))->format('d-M') . 
+                         " to " . \Carbon\Carbon::parse($request->new_due_date)->format('d-M') . 
+                         ". Reason: " . $request->reason
+        ]);
+
+        return back()->with('success', 'Due Date Extended Successfully.');
+    }
     
     public function myTasks()
     {
@@ -258,5 +315,21 @@ class TaskController extends Controller
         $assigners = \App\Models\User::whereHas('createdTasks')->distinct()->get();
 
         return view('tasks.report', compact('tasks', 'stats', 'employees', 'clients', 'assigners'));
+    }
+
+    // Add this method inside TaskController class
+    public function clientRequests()
+    {
+        // Fetch tasks created by Clients that are NOT yet completed
+        // Assuming 'created_by' links to a User who has the 'Client' role
+        $tasks = \App\Models\Task::whereHas('creator', function($query) {
+                $query->role('Client'); // Requires Spatie Permission
+            })
+            ->where('status', '!=', 'Completed') // Show pending/in-progress
+            ->with(['client', 'assignedEmployee', 'creator'])
+            ->latest()
+            ->get();
+
+        return view('tasks.client_requests', compact('tasks'));
     }
 }

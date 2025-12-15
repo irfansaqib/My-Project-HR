@@ -9,7 +9,25 @@ class Client extends Model
 {
     use HasFactory;
 
-    protected $guarded = [];
+    // ✅ UPDATED: Explicitly list all allowed fields to prevent "Mass Assignment" errors
+    protected $fillable = [
+        'business_id',
+        'user_id',
+        'business_name',
+        'business_type',        // New Field
+        'cnic',                 // New Field
+        'registration_number',  // New Field
+        'ntn',                  // New Field
+        'ntn_cnic',             // Kept for backward compatibility if needed
+        'id_type',              // Kept for backward compatibility if needed
+        'contact_person',
+        'phone',
+        'email',
+        'industry',
+        'address',
+        'default_employee_id',
+        'status'
+    ];
 
     // The Login User (Client Portal Access)
     public function user()
@@ -33,5 +51,10 @@ class Client extends Model
     public function tasks()
     {
         return $this->hasMany(Task::class);
+    }
+    
+    public function defaultEmployee()
+    {
+        return $this->belongsTo(Employee::class, 'default_employee_id');
     }
 }

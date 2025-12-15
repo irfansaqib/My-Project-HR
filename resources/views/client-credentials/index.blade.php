@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Client Credentials')
+@section('title', 'Login Details')
 
 @section('content')
 
@@ -15,19 +15,20 @@
 
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title">Client Credentials List</h3>
-        <a href="{{ route('client-credentials.create') }}" class="btn btn-primary float-right">Add New Credential</a>
+        <h3 class="card-title">Login Details List</h3>
+        <a href="{{ route('client-credentials.create') }}" class="btn btn-primary float-right">Add New Login Detail</a>
     </div>
     <div class="card-body">
-        <form method="GET" action="{{ route('client-credentials.index') }}" class="mb-4">
+        {{-- Search Input Area --}}
+        <div class="mb-4">
             <div class="input-group">
-                <input type="text" name="search" class="form-control" placeholder="Search any field..." value="{{ request('search') }}">
+                {{-- Added ID 'live-search' --}}
+                <input type="text" id="live-search" name="search" class="form-control" placeholder="Type to search login details..." value="{{ request('search') }}" autocomplete="off">
                 <div class="input-group-append">
-                    <button class="btn btn-secondary" type="submit">Search</button>
-                    <a href="{{ route('client-credentials.index') }}" class="btn btn-default">Clear</a>
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
                 </div>
             </div>
-        </form>
+        </div>
 
         <div class="table-responsive">
             <table class="table table-bordered table-striped table-sm">
@@ -42,33 +43,43 @@
                         <th style="width: 180px">Actions</th>
                     </tr>
                 </thead>
-                <tbody>
-                    @forelse($credentials as $credential)
-                    <tr>
-                        <td>{{ $credential->company_name }}</td>
-                        <td>{{ $credential->user_name }}</td>
-                        <td>{{ $credential->login_id }}</td>
-                        <td>{{ $credential->password }}</td>
-                        <td>{{ $credential->pin }}</td>
-                        <td>{{ $credential->portal_url }}</td>
-                        <td>
-                            <a href="{{ route('client-credentials.show', $credential) }}" class="btn btn-xs btn-info">View</a>
-                            <a href="{{ route('client-credentials.edit', $credential) }}" class="btn btn-xs btn-warning">Edit</a>
-                            <form method="POST" action="{{ route('client-credentials.destroy', $credential) }}" style="display:inline;">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-xs btn-danger" onclick="return confirm('Are you sure you want to delete this credential?')">Delete</button>
-                            </form>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="7" class="text-center">No credentials found.</td>
-                    </tr>
-                    @endforelse
+                {{-- Added ID 'table-body' to target with JS --}}
+                <tbody id="table-body">
+                    {{-- Include the partial we created --}}
+                    @include('client-credentials.partials.table_body')
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+
+{{-- JavaScript for Live Search --}}
+@push('scripts')
+<script>
+    $(document).ready(function() {
+        let timeout = null;
+
+        $('#live-search').on('keyup', function() {
+            clearTimeout(timeout); // Clear the previous timer
+            let query = $(this).val();
+
+            // Delay search by 300ms to avoid requests on every single keystroke
+            timeout = setTimeout(function() {
+                $.ajax({
+                    url: "{{ route('client-credentials.index') }}",
+                    type: "GET",
+                    data: { search: query },
+                    success: function(data) {
+                        $('#table-body').html(data);
+                    },
+                    error: function(xhr) {
+                        console.log('Error:', xhr);
+                    }
+                });
+            }, 300);
+        });
+    });
+</script>
+@endpush
+
 @endsection

@@ -20,6 +20,11 @@ class TaxServicesController extends Controller
     public function __construct(TaxCalculatorService $taxCalculator)
     {
         $this->taxCalculator = $taxCalculator;
+
+        $this->middleware('permission:tax-service-list', ['only' => ['index', 'show']]);
+        $this->middleware('permission:tax-service-create', ['only' => ['create', 'store', 'storeClient', 'storeEmployee', 'storeComponent']]);
+        $this->middleware('permission:tax-service-edit', ['only' => ['edit', 'update', 'updateClientSettings', 'updateComponent', 'finalizeSalaryInput', 'finalizeSheet']]);
+        $this->middleware('permission:tax-service-delete', ['only' => ['destroy', 'deleteEmployee', 'destroyComponent', 'destroySheet']]);
     }
 
     // =============================================================================================
@@ -100,17 +105,14 @@ class TaxServicesController extends Controller
         return view('tax-services.tabs.salary_index', compact('client', 'nextPayrollMonth', 'hasPendingDraft'));
     }
 
-    // --- UPDATED REPORT TAB (SORTED NEWEST FIRST) ---
     public function tabReports(TaxClient $client)
     {
         if ($client->business_id !== Auth::user()->business_id) abort(403);
         
-        // Load relationships sorted by Month DESC (Newest First)
         $client->load(['salarySheets' => function($q) {
             $q->where('status', 'finalized')->orderBy('month', 'desc');
         }]);
 
-        // Pass the sorted sheets to the view for the dropdown as well
         $salarySheets = $client->salarySheets;
 
         return view('tax-services.tabs.reports', compact('client', 'salarySheets'));
@@ -197,7 +199,6 @@ class TaxServicesController extends Controller
                      ->where('id', $componentId)
                      ->firstOrFail();
 
-        // Protect Basic Salary
         if ($component->name === 'Basic Salary') {
             $component->update([
                 'is_tax_exempt' => false,
@@ -359,7 +360,6 @@ class TaxServicesController extends Controller
                 }
             }
             
-             // Mark Onboarded if this is first
             if (!$client->is_onboarded) {
                 $client->update([
                     'is_onboarded' => true,
@@ -395,11 +395,10 @@ class TaxServicesController extends Controller
              $emp = TaxClientEmployee::find($empId);
              if (!$emp) continue;
 
-             // Handle Opening Balances (Onboarding)
              if (isset($row['opening_gross_salary'])) $emp->opening_gross_salary = $row['opening_gross_salary'];
              if (isset($row['opening_taxable_income'])) $emp->opening_taxable_income = $row['opening_taxable_income'];
              if (isset($row['opening_tax_paid'])) $emp->opening_tax_paid = $row['opening_tax_paid'];
-             $emp->save(); // Save immediately for calculation
+             $emp->save(); 
 
              $history = TaxClientSalaryItem::where('tax_client_employee_id', $empId)
                 ->whereHas('sheet', function($q) use ($fyStart, $sheet) {
@@ -433,7 +432,6 @@ class TaxServicesController extends Controller
              $gross = $fullGross + $bonus;
              $taxable = $fullTaxable + $bonus;
              
-             // Projection Logic
              $futureMonths = $monthsDivisor - 1;
              $futureTaxable = $fullTaxable * $futureMonths; 
              $estAnnual = $ytdTaxable + $taxable + $futureTaxable;
@@ -470,7 +468,6 @@ class TaxServicesController extends Controller
         }
     }
 
-    // --- PREVIEW CALCULATION ---
     public function previewTaxCalculation(Request $request, $clientId)
     {
         $client = TaxClient::findOrFail($clientId);
@@ -537,7 +534,6 @@ class TaxServicesController extends Controller
             $taxLiabilityRemaining = max(0, $estAnnualTaxLiability - $ytdTaxPaidActual);
             $systemMonthlyTaxChargeable = $taxLiabilityRemaining / $monthsDivisor;
 
-            // Manual Override Priority Check
             $reqManual = isset($data['manual_tax_deduction']) && $data['manual_tax_deduction'] !== '' ? (float)$data['manual_tax_deduction'] : null;
             $dbManual = ($emp->manual_tax_deduction !== null) ? $emp->manual_tax_deduction : null;
             
@@ -594,7 +590,6 @@ class TaxServicesController extends Controller
     {
         $sheet->load(['items.employee']);
         
-        // --- 1. Determine Tax Year & Context ---
         $month = Carbon::parse($sheet->month);
         $fyStart = ($month->month >= 7) ? Carbon::create($month->year, 7, 1) : Carbon::create($month->year - 1, 7, 1);
         $fyEnd = $fyStart->copy()->addYear()->subDay();
@@ -606,7 +601,6 @@ class TaxServicesController extends Controller
             $iter->addMonth();
         }
 
-        // --- 2. Fetch History (Up to Previous Month) ---
         $historyData = TaxClientSalaryItem::whereIn('tax_client_employee_id', $sheet->items->pluck('tax_client_employee_id'))
             ->whereHas('sheet', function($q) use ($fyStart, $month) {
                 $q->where('status', 'finalized')
@@ -618,17 +612,14 @@ class TaxServicesController extends Controller
             ->get()
             ->keyBy('tax_client_employee_id');
 
-        // --- 3. Loop & Calculate Projected Values for View ---
         foreach($sheet->items as $item) {
             $emp = $item->employee;
             $hist = $historyData[$emp->id] ?? null;
 
-            // YTD (History + Opening + Current)
             $ytdGross = ($hist->total_gross ?? 0) + $emp->opening_gross_salary + $item->gross_salary;
             $ytdTaxable = ($hist->total_taxable ?? 0) + $emp->opening_taxable_income + $item->taxable_income_monthly;
             $ytdTaxPaid = ($hist->total_tax ?? 0) + $emp->opening_tax_paid + $item->income_tax;
 
-            // Projection (Regular Monthly * Remaining)
             $regularMonthlyTaxable = $item->taxable_income_monthly - ($item->bonus ?? 0);
             $regularMonthlyGross = $item->gross_salary - ($item->bonus ?? 0);
 
@@ -638,10 +629,8 @@ class TaxServicesController extends Controller
             $estAnnualGross = $ytdGross + $projectedGross;
             $estAnnualTaxable = $ytdTaxable + $projectedTaxable;
             
-            // Calculate Annual Tax
             $estAnnualTax = $this->taxCalculator->calculateTaxFromAnnualIncome($estAnnualTaxable, $fyEnd);
 
-            // Inject into Item for View
             $item->display_est_annual_gross = $estAnnualGross;
             $item->display_est_annual_taxable = $estAnnualTaxable;
             $item->display_est_annual_tax = $estAnnualTax;
@@ -666,7 +655,6 @@ class TaxServicesController extends Controller
         return back()->with('success', 'Draft deleted.');
     }
 
-    // --- UPDATED EXPORT SHEET (WITH TOP HEADERS) ---
     public function exportSheet(TaxClientSalarySheet $sheet)
     {
         $sheet->load('items.employee');
@@ -681,11 +669,10 @@ class TaxServicesController extends Controller
         $callback = function() use($sheet, $mainHeaders, $allowances) {
             $file = fopen('php://output', 'w');
             
-            // Add Top-Level Headers
             fputcsv($file, [$sheet->client->name]);
             fputcsv($file, ['Monthly Payroll Sheet']);
             fputcsv($file, ['For the Month of ' . $sheet->month->format('F, Y')]);
-            fputcsv($file, []); // Empty row separator
+            fputcsv($file, []); 
 
             fputcsv($file, $mainHeaders);
             foreach ($sheet->items as $item) {
@@ -700,11 +687,9 @@ class TaxServicesController extends Controller
         return response()->stream($callback, 200, $headers);
     }
     
-    public function exportSalaryData(TaxClient $client) { /* Keep */ }
-    public function importSalaryData(Request $request, TaxClient $client) { /* Keep */ }
+    public function exportSalaryData(TaxClient $client) {  }
+    public function importSalaryData(Request $request, TaxClient $client) {  }
     
-    // --- UPDATED NEW YEAR & TAX YEAR LOGIC ---
-
     public function showNewYearForm(TaxClient $client) 
     { 
         $lastSheet = $client->salarySheets()
@@ -721,7 +706,6 @@ class TaxServicesController extends Controller
             $lastDate = Carbon::parse($lastSheet->month);
             $lastMonthName = $lastDate->format('F, Y');
             
-            // Allow rollover ONLY if the last finalized month is June
             if ($lastDate->month == 6) {
                 $canRollover = true;
                 $nextTaxYearLabel = $lastDate->year . " - " . ($lastDate->year + 1);
@@ -755,7 +739,6 @@ class TaxServicesController extends Controller
                     $emp->current_basic_salary += $request->increment_value;
                 }
                 
-                // Reset YTD History
                 $emp->opening_gross_salary = 0; 
                 $emp->opening_taxable_income = 0; 
                 $emp->opening_tax_paid = 0; 
@@ -772,7 +755,6 @@ class TaxServicesController extends Controller
         }
     }
     
-    // --- REPORTING ---
     public function getTaxDeductionData(Request $request, TaxClient $client) {
         $start = Carbon::parse($request->start_date)->startOfDay();
         $end = Carbon::parse($request->end_date)->endOfDay();
@@ -812,27 +794,24 @@ class TaxServicesController extends Controller
         $callback = function() use($items, $client, $start, $end) {
             $file = fopen('php://output', 'w');
             
-            // 1. Top Headers matching sample file
             fputcsv($file, [$client->name]);
             fputcsv($file, ['Tax Deduction Detail']);
             fputcsv($file, ['For the Period ' . $start->format('F, Y') . ' to ' . $end->format('F, Y')]);
-            fputcsv($file, []); // Empty Row
+            fputcsv($file, []); 
 
-            // 2. Column Headers
             fputcsv($file, [
                 'Payment Section', 'Employee NTN', 'Employee CNIC', 'Employee Name', 
                 'Employee City', 'Employee Address', 'Employee Status', 'Gross Salary', 'Tax Deducted'
             ]);
 
-            // 3. Data Rows
             foreach ($items as $item) {
                 fputcsv($file, [
                     '149(1)', 
-                    '', // NTN (Blank if not in DB)
+                    '', 
                     $item->employee->cnic,
                     $item->employee->name,
-                    '', // City
-                    '', // Address
+                    '', 
+                    '', 
                     'Individual',
                     number_format($item->gross_salary, 0, '.', ''),
                     number_format($item->income_tax, 0, '.', '')
@@ -857,6 +836,7 @@ class TaxServicesController extends Controller
         return view('tax-services.reports.tax_deduction_view', compact('client', 'items', 'start', 'end'));
     }
 
+    // ✅ UPDATED PROJECTION REPORT LOGIC
     public function ProjectionReport(Request $request, TaxCalculatorService $taxCalculator)
     {
         $clientId = $request->route('client'); 
@@ -866,16 +846,39 @@ class TaxServicesController extends Controller
         $taxYearStart = Carbon::createFromDate($taxYear, 7, 1)->startOfDay();
         $taxYearEnd   = Carbon::createFromDate($taxYear + 1, 6, 30)->endOfDay();
         $systemOnboardingDate = Carbon::createFromDate(2025, 11, 1)->startOfMonth(); 
-        $currentDate = now()->startOfMonth();
+        
+        // 1. Determine "Current" month based on LAST FINALIZED sheet
+        $lastFinalizedSheet = TaxClientSalarySheet::where('tax_client_id', $client->id)
+                                ->where('status', 'finalized')
+                                ->orderBy('month', 'desc')
+                                ->first();
+
+        // If a finalized sheet exists, use its date as the pivot.
+        // Otherwise, fall back to current calendar month.
+        $pivotDate = $lastFinalizedSheet ? Carbon::parse($lastFinalizedSheet->month)->startOfMonth() : now()->startOfMonth();
 
         $reportColumns = [];
         $period = \Carbon\CarbonPeriod::create($taxYearStart, '1 month', $taxYearEnd);
+        
         foreach ($period as $date) {
             $mDate = $date->copy()->startOfMonth();
+            
             if ($mDate->greaterThanOrEqualTo($systemOnboardingDate)) {
-                $type = 'past';
-                if ($mDate->equalTo($currentDate)) $type = 'current';
-                elseif ($mDate->gt($currentDate))  $type = 'future';
+                
+                // Set Column Type based on Finalized Status
+                if ($lastFinalizedSheet) {
+                    if ($mDate->lt($pivotDate)) {
+                        $type = 'past';      // Yellow
+                    } elseif ($mDate->equalTo($pivotDate)) {
+                        $type = 'current';   // Green
+                    } else {
+                        $type = 'future';    // Blue
+                    }
+                } else {
+                    // Fallback behavior if no sheets are finalized yet
+                    $type = ($mDate->lt(now()->startOfMonth())) ? 'past' : 'future';
+                }
+
                 $reportColumns[] = ['date' => $mDate, 'label' => $mDate->format('M-Y'), 'key' => $mDate->format('Y-m'), 'type' => $type];
             }
         }
@@ -952,10 +955,6 @@ class TaxServicesController extends Controller
         return view('tax-services.projection_report', compact('client', 'projectionData', 'reportColumns', 'taxYear', 'systemOnboardingDate'));
     }
 
-    // =============================================================================================
-    // 8. TAX CERTIFICATES (NEW MODULE)
-    // =============================================================================================
-
     public function tabCertificates(TaxClient $client)
     {
         if ($client->business_id !== Auth::user()->business_id) abort(403);
@@ -974,7 +973,6 @@ class TaxServicesController extends Controller
         $start = Carbon::create($year, 7, 1)->startOfDay();       
         $end   = Carbon::create($year + 1, 6, 30)->endOfDay();    
 
-        // 1. Fetch Items
         $query = TaxClientSalaryItem::whereHas('sheet', function($q) use($client, $start, $end){
             $q->where('tax_client_id', $client->id)
               ->where('status', 'finalized')
@@ -997,7 +995,6 @@ class TaxServicesController extends Controller
         foreach($grouped as $empId => $empItems) {
             $employee = $empItems->first()->employee;
             
-            // Format Items
             $details = $empItems->sortBy(function($item){ return $item->sheet->month; })->map(function($item){
                 return [
                     'month' => Carbon::parse($item->sheet->month)->format('F, Y'),
@@ -1006,14 +1003,12 @@ class TaxServicesController extends Controller
                 ];
             });
 
-            // --- YTD / OPENING BALANCE INJECTION ---
             $totalGross = $empItems->sum('gross_salary');
             $totalTax = $empItems->sum('income_tax');
             
             $firstItemDate = Carbon::parse($empItems->sortBy('sheet.month')->first()->sheet->month);
             $taxYearStart = Carbon::create($year, 7, 1);
 
-            // If First item is NOT July, and Opening Balances Exist
             if ($firstItemDate->gt($taxYearStart) && ($employee->opening_gross_salary > 0 || $employee->opening_tax_paid > 0)) {
                 $periodEnd = $firstItemDate->copy()->subMonth();
                 $label = "July " . $year . " to " . $periodEnd->format('F Y') . " (Opening)";
@@ -1027,7 +1022,6 @@ class TaxServicesController extends Controller
                 $totalGross += $employee->opening_gross_salary;
                 $totalTax += $employee->opening_tax_paid;
             }
-            // ----------------------------------------
 
             $certificates[] = [
                 'employee' => $employee,

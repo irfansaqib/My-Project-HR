@@ -2,155 +2,203 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
-use App\Models\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\DB;
-use Laravel\Socialite\Facades\Socialite;
+use App\Models\User;
+use App\Models\Client;
+use App\Models\Business; // Added for the Business Code check
+use Laravel\Socialite\Facades\Socialite; 
 
 class ClientAuthController extends Controller
 {
-    public function showLogin() {
-        return view('client_portal.auth.login');
-    }
+    // ==========================================
+    // REGISTER METHODS
+    // ==========================================
 
-    public function showRegister() {
-        return view('client_portal.auth.register');
-    }
-
-    // --- CUSTOM LOGIN LOGIC ---
-    public function login(Request $request) {
-        $credentials = $request->validate([
-            'email' => 'required|email',
-            'password' => 'required'
-        ]);
-
-        if (Auth::attempt($credentials, $request->remember)) {
-            $request->session()->regenerate();
-            // Ensure they are actually a Client
-            if (!Auth::user()->hasRole('Client')) {
-                Auth::logout();
-                return back()->withErrors(['email' => 'Access denied. This portal is for Clients only.']);
-            }
-            return redirect()->route('client.dashboard');
+    public function showRegisterForm()
+    {
+        if (view()->exists('client_portal.auth.register')) {
+            return view('client_portal.auth.register');
         }
-
-        return back()->withErrors(['email' => 'The provided credentials do not match our records.']);
+        return view('auth.register'); 
     }
 
-    // --- THE CRITICAL REGISTRATION LOGIC ---
     public function register(Request $request)
     {
-        // 1. Validation (Matches Admin Logic)
-        $idRules = ['required'];
-        if ($request->id_type === 'CNIC') {
-            $idRules[] = 'regex:/^[0-9]{13}$/'; 
-        } else {
-            $idRules[] = 'regex:/^[A-Za-z0-9]{7}-[A-Za-z0-9]{1}$/';
+        // ==========================================
+        // 1. SANITIZE INPUT (Strip Dashes from CNIC)
+        // ==========================================
+        if ($request->has('cnic') && $request->cnic !== null) {
+            $request->merge(['cnic' => str_replace('-', '', $request->cnic)]);
         }
 
-        $request->validate([
-            'business_name' => 'required',
-            'id_type'       => 'required|in:NTN,CNIC',
-            'ntn_cnic'      => $idRules,
-            'contact_person'=> 'required',
-            'email'         => 'required|email', // Check uniqueness manually below
-            'password'      => 'required|min:8|confirmed',
+        // ==========================================
+        // 2. SMART DUPLICATE CHECK
+        // ==========================================
+        $incomingId = ($request->business_type === 'Individual') ? $request->cnic : $request->ntn;
+        
+        $alreadyExists = User::where(function($query) use ($incomingId) {
+            if ($incomingId) {
+                $query->where('cnic', $incomingId)->orWhere('ntn', $incomingId);
+            }
+        })->exists();
+
+        if ($alreadyExists && $incomingId) {
+            return back()->withErrors([
+                'duplicate' => 'This ID (CNIC or NTN) is already registered with us.'
+            ])->withInput();
+        }
+
+        // ==========================================
+        // 3. DEFINE RULES
+        // ==========================================
+        $rules = [
+            'name'          => 'required|string|max:255',
+            'email'         => 'required|email|max:255|unique:users',
+            'password'      => 'required|string|min:8|confirmed',
+            'business_type' => 'required|in:Individual,Partnership,Company',
+        ];
+
+        if ($request->business_type === 'Individual') {
+            // CNIC: Must be exactly 13 digits
+            $rules['cnic'] = 'required|digits:13|unique:users,cnic';
+            // NTN: Optional, strict format
+            $rules['ntn']  = ['nullable', 'string', 'regex:/^[A-Za-z0-9]{7}-\d{1}$/', 'unique:users,ntn']; 
+            $rules['registration_number'] = 'nullable';
+        } else {
+            // Company Rules
+            $rules['registration_number'] = 'required|string|max:50|unique:users,registration_number';
+            $rules['ntn']  = ['required', 'string', 'regex:/^[A-Za-z0-9]{7}-\d{1}$/', 'unique:users,ntn']; 
+            $rules['cnic'] = 'nullable';
+        }
+
+        $validated = $request->validate($rules, [
+            'ntn.regex' => 'The NTN format is invalid. It must be 7 characters, a dash, and 1 digit (e.g. 1234567-8).',
+            'cnic.digits' => 'The CNIC must be exactly 13 digits.',
         ]);
 
-        DB::beginTransaction();
-        try {
-            // 2. Check if Client Profile Exists (Anchored by NTN/CNIC)
-            $existingClient = Client::where('ntn_cnic', $request->ntn_cnic)->first();
+        // ==========================================
+        // 4. CREATE USER
+        // ==========================================
+        $user = User::create([
+            'name'          => $request->name,
+            'email'         => $request->email,
+            'password'      => Hash::make($request->password),
+            'business_type' => $request->business_type,
+            'cnic'          => ($request->business_type === 'Individual') ? $request->cnic : null,
+            'registration_number' => ($request->business_type !== 'Individual') ? $request->registration_number : null,
+            'ntn'           => $request->ntn, 
+        ]);
 
-            // 3. Scenario: Admin already added this client
-            if ($existingClient) {
-                if ($existingClient->user_id) {
-                    // User account already exists -> Fail
-                    return back()->withErrors(['email' => 'An account already exists for this NTN/CNIC. Please Login.'])->withInput();
-                }
-                
-                // Client exists but no Login -> LINK THEM
-                // First, check if email is taken by someone else
-                if (User::where('email', $request->email)->exists()) {
-                    return back()->withErrors(['email' => 'This email is already in use.'])->withInput();
-                }
-
-                $user = User::create([
-                    'name' => $request->contact_person,
-                    'email' => $request->email,
-                    'password' => Hash::make($request->password),
-                    'business_id' => $existingClient->business_id, // Link to same business
-                    'role' => 'Client'
-                ]);
-                $user->assignRole('Client');
-
-                // Update Client Record
-                $existingClient->update(['user_id' => $user->id]);
-                
-            } else {
-                // 4. Scenario: Brand New Client
-                if (User::where('email', $request->email)->exists()) {
-                    return back()->withErrors(['email' => 'This email is already in use.'])->withInput();
-                }
-
-                // Assuming default business_id = 1 for self-signup or you might need a logic 
-                // to decide which Agency Business they belong to if you run multiple.
-                // For now, we assume the system owner's business ID is 1.
-                $defaultBusinessId = 1; 
-
-                $user = User::create([
-                    'name' => $request->contact_person,
-                    'email' => $request->email,
-                    'password' => Hash::make($request->password),
-                    'business_id' => $defaultBusinessId,
-                    'role' => 'Client'
-                ]);
-                $user->assignRole('Client');
-
-                Client::create([
-                    'business_id' => $defaultBusinessId,
-                    'user_id' => $user->id,
-                    'business_name' => $request->business_name,
-                    'id_type' => $request->id_type,
-                    'ntn_cnic' => $request->ntn_cnic,
-                    'contact_person' => $request->contact_person,
-                    'email' => $request->email,
-                    'status' => 'active'
-                ]);
-            }
-
-            DB::commit();
-            Auth::login($user);
-            return redirect()->route('client.dashboard');
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->withErrors(['error' => $e->getMessage()])->withInput();
+        if (method_exists($user, 'assignRole')) {
+            $user->assignRole('Client');
         }
+
+        // ==========================================
+        // 5. CREATE CLIENT PROFILE (SMART LINK LOGIC)
+        // ==========================================
+        
+        // A. Look for the code in the form input (from URL ?code=...)
+        $code = $request->input('business_code');
+        
+        $business = null;
+        if ($code) {
+            // If code exists, try to find the specific business
+            $business = Business::where('portal_code', $code)->first();
+        }
+
+        // B. Fallback: If no code or invalid code, default to the Main Business (First one)
+        if (!$business) {
+            $business = Business::orderBy('id', 'asc')->first();
+        }
+
+        // C. Safety Catch
+        if (!$business) {
+             // In the rare case the businesses table is empty, we must stop to prevent crash
+             return back()->with('error', 'System Error: No Business Profile found to link account.');
+        }
+
+        // D. Determine Main ID Type
+        if ($request->business_type === 'Individual') {
+            $mainId = $request->cnic;
+            $idType = 'CNIC';
+        } else {
+            $mainId = $request->registration_number;
+            $idType = 'REG_NO';
+        }
+
+        // E. Create Client
+        Client::create([
+            'user_id'       => $user->id,
+            'business_id'   => $business->id, // <--- Correctly linked ID
+            'business_name' => $request->name, 
+            'contact_person'=> ($request->business_type === 'Individual') ? $request->name : 'N/A',
+            'id_type'       => $idType,
+            'ntn_cnic'      => $mainId, 
+            'status'        => 'active',
+            'email'         => $request->email,
+        ]);
+
+        Auth::login($user);
+        return redirect()->route('client.dashboard')->with('success', 'Account created successfully!');
+    } 
+
+    // ==========================================
+    // LOGIN METHODS
+    // ==========================================
+
+    public function showLoginForm()
+    {
+        if (view()->exists('client_portal.auth.login')) {
+            return view('client_portal.auth.login');
+        }
+        return view('auth.login');
     }
 
-    // --- GOOGLE AUTH PLACEHOLDERS ---
-    public function redirectToGoogle() {
+    public function login(Request $request)
+    {
+        $credentials = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required'],
+        ]);
+
+        if (Auth::attempt($credentials)) {
+            $request->session()->regenerate();
+            return redirect()->route('client.dashboard');
+        }
+
+        return back()->withErrors([
+            'email' => 'The provided credentials do not match our records.',
+        ])->onlyInput('email');
+    }
+
+    public function logout(Request $request)
+    {
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        return redirect()->route('client.login');
+    }
+
+    public function redirectToGoogle()
+    {
         return Socialite::driver('google')->redirect();
     }
 
-    public function handleGoogleCallback() {
+    public function handleGoogleCallback()
+    {
         try {
             $googleUser = Socialite::driver('google')->user();
             $user = User::where('email', $googleUser->getEmail())->first();
 
-            if ($user) {
-                Auth::login($user);
-                return redirect()->route('client.dashboard');
-            } else {
-                // If user doesn't exist, we can't auto-create because we need NTN/CNIC.
-                // Redirect to register with email pre-filled
-                return redirect()->route('client.register', ['email' => $googleUser->getEmail()])
-                    ->with('info', 'Please complete your registration details.');
+            if (!$user) {
+                return redirect()->route('client.login')->with('error', 'Please register via the form first to set up your profile.');
             }
+
+            Auth::login($user);
+            return redirect()->route('client.dashboard');
+
         } catch (\Exception $e) {
             return redirect()->route('client.login')->with('error', 'Google Login Failed');
         }

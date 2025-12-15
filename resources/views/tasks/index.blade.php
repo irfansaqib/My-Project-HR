@@ -45,8 +45,8 @@
                     </td>
                     <td><span class="d-inline-block text-truncate" style="max-width: 150px;">{{ $task->description }}</span></td>
                     <td style="font-size: 11px;">
-                        <div class="text-success"><i class="fas fa-play-circle"></i> {{ \Carbon\Carbon::parse($task->start_date)->format('d-M-y h:i A') }}</div>
-                        <div class="text-danger"><i class="fas fa-stop-circle"></i> {{ $task->due_date ? \Carbon\Carbon::parse($task->due_date)->format('d-M-y h:i A') : 'N/A' }}</div>
+                        <div class="text-success"><i class="fas fa-play-circle"></i> {{ $task->start_date ? \Carbon\Carbon::parse($task->start_date)->format('d-M-y') : '-' }}</div>
+                        <div class="text-danger"><i class="fas fa-stop-circle"></i> {{ $task->due_date ? \Carbon\Carbon::parse($task->due_date)->format('d-M-y') : 'N/A' }}</div>
                     </td>
                     <td>
                         @if($task->assignedEmployee)
@@ -59,23 +59,28 @@
                         @php $pColor = match($task->priority) { 'Very Urgent'=>'danger', 'Urgent'=>'warning', default=>'success' }; @endphp
                         <span class="badge badge-{{ $pColor }}">{{ $task->priority }}</span>
                     </td>
-                    <td>
-                        <span class="badge badge-light border">{{ $task->status }}</span>
+                    
+                    {{-- ✅ UPDATED STATUS COLUMN WITH OVERDUE TAG --}}
+                    <td style="vertical-align: middle;">
+                        <span class="badge badge-light border d-block mb-1">{{ $task->status }}</span>
+                        
+                        @if($task->isOverdue())
+                            <span class="badge badge-danger text-uppercase" style="font-size: 9px; letter-spacing: 0.5px; display: block;">
+                                <i class="fas fa-exclamation-circle mr-1"></i> Overdue
+                            </span>
+                        @endif
                     </td>
+
                     <td class="small">{{ $task->creator->name ?? 'System' }}<br><span class="text-muted">{{ $task->created_at->format('d-M-y') }}</span></td>
                     <td class="text-right">
-                        {{-- 1. VIEW BUTTON (THIS WAS MISSING) --}}
                         <a href="{{ route('tasks.show', $task->id) }}" class="btn btn-xs btn-info" title="View & Workflow">
                             <i class="fas fa-eye"></i>
                         </a>
 
                         @if(Auth::user()->hasRole(['Admin', 'Owner']) || Auth::id() == $task->created_by)
-                            {{-- 2. EDIT BUTTON --}}
                             <a href="{{ route('tasks.edit', $task->id) }}" class="btn btn-xs btn-primary" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            
-                            {{-- 3. DELETE BUTTON --}}
                             <form action="{{ route('tasks.destroy', $task->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete Task?');">
                                 @csrf @method('DELETE')
                                 <button class="btn btn-xs btn-danger" title="Delete"><i class="fas fa-trash"></i></button>

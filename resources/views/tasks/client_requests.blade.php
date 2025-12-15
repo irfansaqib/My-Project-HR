@@ -1,0 +1,103 @@
+@extends('layouts.admin')
+
+@section('title', 'Incoming Client Requests')
+
+@section('content')
+<div class="container-fluid">
+    
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="m-0 text-dark"><i class="fas fa-inbox me-2"></i>Incoming Client Requests</h4>
+        <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
+            <li class="breadcrumb-item active">Client Requests</li>
+        </ol>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h3 class="card-title mb-0">Pending Requests</h3>
+        </div>
+        
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover align-middle mb-0">
+                    <thead class="thead-light">
+                        <tr>
+                            <th class="ps-4" style="width: 80px;">ID</th>
+                            <th>Client Details</th>
+                            <th>Subject</th>
+                            <th>Date Submitted</th>
+                            <th>Assigned To</th>
+                            <th>Status</th>
+                            <th class="text-right pe-4">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($tasks as $task)
+                        <tr>
+                            <td class="ps-4 fw-bold">#{{ $task->id }}</td>
+                            
+                            <td>
+                                <div class="user-block">
+                                    <span class="username text-primary" style="margin-left: 0px;">
+                                        {{ $task->client->name ?? 'Unknown Client' }}
+                                    </span>
+                                    <span class="description" style="margin-left: 0px;">
+                                        {{ $task->creator->email ?? 'No Email' }}
+                                    </span>
+                                </div>
+                            </td>
+
+                            <td>
+                                <span class="fw-bold">{{ Str::limit($task->title, 40) }}</span>
+                            </td>
+
+                            <td>
+                                {{ $task->created_at->format('d M, Y') }}<br>
+                                <small class="text-muted">{{ $task->created_at->format('h:i A') }}</small>
+                            </td>
+
+                            <td>
+                                @if($task->assignedEmployee)
+                                    <span class="badge badge-success">
+                                        {{ $task->assignedEmployee->name }}
+                                    </span>
+                                @else
+                                    <span class="badge badge-warning">Unassigned</span>
+                                @endif
+                            </td>
+
+                            <td>
+                                @php
+                                    $statusClass = match($task->status) {
+                                        'Completed' => 'success',
+                                        'In Progress' => 'primary',
+                                        'Pending' => 'warning',
+                                        'Cancelled' => 'danger',
+                                        default => 'secondary'
+                                    };
+                                @endphp
+                                <span class="badge badge-{{ $statusClass }}">{{ $task->status }}</span>
+                            </td>
+
+                            <td class="text-right pe-4">
+                                <a href="{{ route('tasks.edit', $task->id) }}" class="btn btn-sm btn-info">
+                                    <i class="fas fa-eye"></i> View / Assign
+                                </a>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <i class="fas fa-folder-open fa-3x mb-3 text-secondary opacity-50"></i>
+                                <p class="mb-0">No pending client requests found.</p>
+                            </td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection

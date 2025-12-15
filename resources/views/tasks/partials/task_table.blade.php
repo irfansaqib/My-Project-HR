@@ -15,14 +15,16 @@
         <tbody>
             @foreach($tasks as $task)
                 @php
-                    // Determine CSS Class based on PDF Legend
+                    // CSS Class based on PDF Legend (Background Color)
                     $rowClass = '';
-                    if($task->status == 'Pending') $rowClass = 'status-pending';
-                    elseif($task->status == 'In Progress') $rowClass = 'status-progress';
-                    elseif($task->status == 'Completed') $rowClass = 'status-completed';
-                    elseif($task->status == 'Closed') $rowClass = 'status-closed';
+                    if($task->status == 'Pending') $rowClass = 'status-pending'; // Red-ish
+                    elseif($task->status == 'In Progress') $rowClass = 'status-progress'; // Blue-ish
+                    elseif($task->status == 'Completed') $rowClass = 'status-completed'; // Yellow-ish
+                    elseif($task->status == 'Closed') $rowClass = 'status-closed'; // Green-ish
                     
-                    if($task->isOverdue()) $rowClass .= ' status-overdue';
+                    // Note: We don't override the whole row color for overdue anymore based on your new design,
+                    // we just add the tag. But if you want the red border/text from before:
+                    // if($task->isOverdue()) $rowClass .= ' status-overdue'; 
                 @endphp
 
                 <tr class="{{ $rowClass }}">
@@ -36,9 +38,19 @@
                     <td>{{ $task->created_at->format('d-M-y') }}</td>
                     <td>
                         {{ $task->due_date ? $task->due_date->format('d-M-y') : 'N/A' }}
-                        @if($task->isOverdue()) <i class="fas fa-exclamation-circle text-danger ml-1" title="Overdue"></i> @endif
                     </td>
-                    <td class="font-weight-bold">{{ $task->status }}</td>
+                    
+                    {{-- ✅ UPDATED STATUS COLUMN --}}
+                    <td>
+                        <span class="font-weight-bold">{{ $task->status }}</span>
+                        @if($task->isOverdue())
+                            <br>
+                            <span class="badge badge-danger mt-1" style="font-size: 10px;">
+                                <i class="fas fa-exclamation-triangle"></i> OVERDUE
+                            </span>
+                        @endif
+                    </td>
+
                     <td class="text-center bg-white">
                         <a href="{{ route('tasks.show', $task->id) }}" class="btn btn-sm btn-outline-primary">
                             <i class="fas fa-eye"></i> View

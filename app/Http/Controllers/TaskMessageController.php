@@ -3,56 +3,76 @@
 namespace App\Http\Controllers;
 
 use App\Models\Task;
-use App\Models\ClientMessage;
+use App\Models\TaskMessage;
+use App\Models\User;
+use App\Notifications\TaskAlert; // ✅ Correct Import for Notifications
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class TaskMessageController extends Controller
 {
     public function store(Request $request, Task $task)
     {
+        // 1. Validate Input
         $request->validate([
-            'message' => 'required|string|max:1000',
-            'attachment' => 'nullable|file|max:2048' // 2MB Max
+            'message' => 'required|string',
+            'attachment' => 'nullable|file|max:10240', // 10MB max limit
         ]);
 
-        // Security: Ensure User is allowed to comment on this task
-        $user = Auth::user();
-        $isClient = $user->hasRole('Client');
-        $isAdminOrStaff = $user->hasRole(['Admin', 'Owner']) || $user->employee;
-
-        if ($isClient && $task->client_id !== $user->client->id) {
-            abort(403, 'Unauthorized');
-        }
-        
-        // Save Attachment
+        // 2. Handle File Upload
         $path = null;
         if ($request->hasFile('attachment')) {
-            $path = $request->file('attachment')->store('task-attachments', 'public');
+            $path = $request->file('attachment')->store('task_attachments', 'public');
         }
 
-        ClientMessage::create([
+        // 3. Save Message to Database
+        TaskMessage::create([
             'task_id' => $task->id,
-            'sender_id' => $user->id,
+            'sender_id' => Auth::id(),
             'message' => $request->message,
-            'attachment_path' => $path
+            'attachment_path' => $path,
         ]);
 
-        $sender = Auth::user();
-        $isClient = $sender->hasRole('Client');
+        // 4. Send Notification (Email + Bell)
+        try {
+            $sender = Auth::user();
+            $recipient = null;
 
-        if ($isClient) {
-            // Client sent message -> Notify Assigned Employee OR Admin
-            $recipient = $task->assignedEmployee->email ?? User::role('Admin')->first()->email;
-        } else {
-            // Employee sent message -> Notify Client
-            $recipient = $task->client->email; // The client contact email
+            // Check if the sender is the Client
+            $isClient = $sender->hasRole('Client'); 
+
+            if ($isClient) {
+                // Client sent message -> Notify Assigned Employee
+                if ($task->assignedEmployee) {
+                    // ✅ We must select the User Object, NOT the email string
+                    $recipient = $task->assignedEmployee; 
+                } else {
+                    // If no employee assigned, notify an Admin/Owner
+                    $recipient = User::role(['Admin', 'Owner'])->first();
+                }
+            } else {
+                // Employee/Admin sent message -> Notify Client
+                // ✅ We must select the User Object, NOT the email string
+                $recipient = $task->client; 
+            }
+
+            // Send the Notification
+            if ($recipient) {
+                // This sends BOTH the Email and adds it to the Database for the Bell Icon
+                // Ensure App\Notifications\TaskAlert's via() method returns ['mail', 'database']
+                $recipient->notify(new TaskAlert(
+                    $task, 
+                    'message', 
+                    "New Message: " . Str::limit($request->message, 30)
+                ));
+            }
+        } catch (\Exception $e) {
+            // Log error if needed, prevents crash if mail server fails
+            // \Illuminate\Support\Facades\Log::error("Notification Error: " . $e->getMessage());
         }
 
-        if ($recipient) {
-            Mail::to($recipient)->send(new TaskNotification($task, 'message', $request->message));
-        }
-        
         return back()->with('success', 'Message sent.');
     }
 }

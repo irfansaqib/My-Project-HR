@@ -78,4 +78,10 @@ class User extends Authenticatable
     {
         return $this->hasOne(Employee::class, 'user_id'); // Assuming user_id exists in employees table
     }
+
+    // Add this to your User.php file
+    public function client()
+    {
+        return $this->hasOne(Client::class);
+    }
 }

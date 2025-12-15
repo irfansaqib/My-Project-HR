@@ -1,11 +1,11 @@
 @extends('layouts.admin')
 
-@section('title', 'Add New Credential')
+@section('title', 'Add New Login Detail')
 
 @section('content')
 <div class="card card-primary">
     <div class="card-header">
-        <h3 class="card-title">Add New Client Credential</h3>
+        <h3 class="card-title">Add New Login Detail</h3>
     </div>
     <form method="POST" action="{{ route('client-credentials.store') }}">
         @csrf
@@ -25,7 +25,7 @@
             </div>
 
             <hr>
-            <h5 class="mt-4 mb-3">Login Details</h5>
+            <h5 class="mt-4 mb-3">Authentication Details</h5>
 
             <div class="row">
                 <div class="col-md-6 form-group">
@@ -111,7 +111,7 @@
             </div>
         </div>
         <div class="card-footer">
-            <button type="submit" class="btn btn-primary">Save Credential</button>
+            <button type="submit" class="btn btn-primary">Save Login Detail</button>
             <a href="{{ route('client-credentials.index') }}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>

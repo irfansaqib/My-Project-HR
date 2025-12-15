@@ -30,6 +30,13 @@ class DashboardController extends Controller
             return $this->employeeDashboard($user->employee);
         }
 
+        // 3. CLIENT DASHBOARD (New Addition)
+        // If the user has the 'Client' role, send them to the specific portal route
+        if ($user->hasRole('Client')) {
+            // This redirects to the route named 'client.dashboard' defined in your web.php
+            return redirect()->route('client.dashboard');
+        }
+
         // Fallback for users with no role and no employee link
         return view('welcome'); 
     }

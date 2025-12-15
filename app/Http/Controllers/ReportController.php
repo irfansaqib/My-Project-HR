@@ -101,14 +101,178 @@ class ReportController extends Controller
     
     public function leaveReport(Request $request)
     {
-        $leaves = collect();
-        return view('reports.leave', compact('leaves'));
+        $businessId = Auth::user()->business_id;
+        
+        // 1. Fetch Dropdown Data
+        $employees = Employee::where('business_id', $businessId)->orderBy('name')->get();
+        $leaveTypes = \App\Models\LeaveType::where('business_id', $businessId)->get();
+
+        // 2. Build Query
+        $query = LeaveRequest::with(['employee', 'leaveType'])
+            ->whereHas('employee', function($q) use ($businessId) {
+                $q->where('business_id', $businessId);
+            });
+
+        // 3. Apply Filters
+        if ($request->filled('employee_id')) {
+            $query->where('employee_id', $request->employee_id);
+        }
+        if ($request->filled('leave_type_id')) {
+            $query->where('leave_type_id', $request->leave_type_id);
+        }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('from_date')) {
+            $query->where('start_date', '>=', $request->from_date);
+        }
+        if ($request->filled('to_date')) {
+            $query->where('end_date', '<=', $request->to_date);
+        }
+
+        $leaves = $query->orderBy('start_date', 'desc')->get();
+
+        // 4. Calculate Stats for Cards
+        $totalRequests = $leaves->count();
+        $approvedCount = $leaves->where('status', 'approved')->count();
+        $pendingCount = $leaves->where('status', 'pending')->count();
+        $rejectedCount = $leaves->where('status', 'rejected')->count();
+
+        // 5. Handle Excel Export
+        if ($request->export === 'excel') {
+            return $this->exportLeavesToCsv($leaves);
+        }
+
+        return view('reports.leave', compact(
+            'leaves', 'employees', 'leaveTypes', 
+            'totalRequests', 'approvedCount', 'pendingCount', 'rejectedCount'
+        ));
     }
+
+    /**
+     * Helper to Export Leave Report to CSV
+     */
+    private function exportLeavesToCsv($leaves)
+    {
+        $filename = "Leave_Report_" . now()->format('Y-m-d') . ".csv";
+        $headers = [
+            "Content-type" => "text/csv",
+            "Content-Disposition" => "attachment; filename=$filename",
+            "Pragma" => "no-cache",
+            "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
+            "Expires" => "0"
+        ];
+
+        $callback = function() use($leaves) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['Employee', 'Leave Type', 'Start Date', 'End Date', 'Days', 'Reason', 'Status', 'Applied On']);
+            
+            foreach ($leaves as $leave) {
+                fputcsv($file, [
+                    $leave->employee->name,
+                    $leave->leaveType->name ?? 'N/A',
+                    $leave->start_date->format('d M, Y'),
+                    $leave->end_date->format('d M, Y'),
+                    $leave->days,
+                    $leave->reason,
+                    ucfirst($leave->status),
+                    $leave->created_at->format('d M, Y')
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    // --------------------------------------------------------------------------------------------------
+    // PAYROLL REPORT (UPDATED TO FIX ZERO VALUES)
+    // --------------------------------------------------------------------------------------------------
 
     public function payrollReport(Request $request)
     {
-        $payrolls = collect();
-        return view('reports.payroll', compact('payrolls'));
+        $businessId = Auth::user()->business_id;
+        
+        // Defaults: Current Year
+        $fromMonth = $request->from_month ? Carbon::parse($request->from_month)->startOfMonth() : Carbon::now()->startOfYear();
+        $toMonth = $request->to_month ? Carbon::parse($request->to_month)->endOfMonth() : Carbon::now()->endOfMonth();
+
+        // Query finalized salary sheets within range
+        $query = SalarySheet::where('business_id', $businessId)
+            ->where('status', 'finalized') // Only show finalized data
+            ->whereBetween('month', [$fromMonth, $toMonth]);
+
+        // ✅ FIX: Added with('items') to load the children rows so we can calculate sums
+        $sheets = $query->with('items')->withCount('items')->orderBy('month', 'desc')->get();
+
+        // ✅ FIX: Loop through sheets and calculate totals manually if DB returns 0
+        foreach ($sheets as $sheet) {
+            // If the main sheet has 0 values but has employees (items), we calculate from items
+            if ($sheet->total_net_salary <= 0 && $sheet->items->count() > 0) {
+                
+                // Sum up the columns from the individual employee items
+                $sumGross = $sheet->items->sum('gross_salary');
+                $sumTax = $sheet->items->sum('income_tax');
+                $sumNet = $sheet->items->sum('net_salary');
+                
+                // Update the sheet object temporarily for display
+                $sheet->total_gross_salary = $sumGross;
+                $sheet->total_tax = $sumTax;
+                $sheet->total_net_salary = $sumNet;
+                
+                // Calculate deductions (Gross - Net)
+                $sheet->total_deductions = $sumGross - $sumNet;
+            }
+        }
+
+        // Calculate Totals for the "Cards" at the top based on the corrected values
+        $totalGross = $sheets->sum('total_gross_salary');
+        $totalNet = $sheets->sum('total_net_salary');
+        $totalTax = $sheets->sum('total_tax');
+        $totalDeductions = $sheets->sum('total_deductions');
+
+        // Excel Export
+        if ($request->export === 'excel') {
+            return $this->exportPayrollSummaryCsv($sheets);
+        }
+
+        return view('reports.payroll', compact(
+            'sheets', 'totalGross', 'totalNet', 'totalTax', 'totalDeductions', 'fromMonth', 'toMonth'
+        ));
+    }
+
+    /**
+     * Helper to Export Payroll Summary
+     */
+    private function exportPayrollSummaryCsv($sheets)
+    {
+        $filename = "Payroll_Summary_" . now()->format('Y-m-d') . ".csv";
+        $headers = [
+            "Content-type" => "text/csv",
+            "Content-Disposition" => "attachment; filename=$filename",
+            "Pragma" => "no-cache",
+            "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
+            "Expires" => "0"
+        ];
+
+        $callback = function() use($sheets) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['Month', 'Total Employees', 'Total Gross Pay', 'Total Tax', 'Total Deductions', 'Total Net Pay']);
+            
+            foreach ($sheets as $sheet) {
+                fputcsv($file, [
+                    $sheet->month->format('F Y'),
+                    $sheet->items_count ?? $sheet->items->count(), 
+                    $sheet->total_gross_salary,
+                    $sheet->total_tax,
+                    $sheet->total_deductions,
+                    $sheet->total_net_salary
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     // --------------------------------------------------------------------------------------------------
@@ -266,7 +430,7 @@ class ReportController extends Controller
     }
 
     // --------------------------------------------------------------------------------------------------
-    // ✅ NEW: TAX DEDUCTION REPORT
+    // TAX DEDUCTION REPORT
     // --------------------------------------------------------------------------------------------------
 
     /**
@@ -301,7 +465,7 @@ class ReportController extends Controller
         $totalTax = $records->sum('income_tax');
         $totalGross = $records->sum('gross_salary');
 
-        // ✅ EXPORT TO EXCEL Check
+        // EXPORT TO EXCEL Check
         if ($request->export === 'excel') {
             return $this->exportTaxDeductionCsv($records, $business, $fromDate, $toDate);
         }
@@ -310,7 +474,7 @@ class ReportController extends Controller
     }
 
     /**
-     * ✅ NEW: Helper to Generate Tax Excel/CSV
+     * Helper to Generate Tax Excel/CSV
      */
     private function exportTaxDeductionCsv($records, $business, $start, $end)
     {

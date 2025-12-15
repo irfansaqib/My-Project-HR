@@ -12,7 +12,7 @@ class RoleController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:role-view')->only(['index', 'show']);
+        $this->middleware('permission:role-list')->only(['index', 'show']);
         $this->middleware('permission:role-create')->only(['create', 'store']);
         $this->middleware('permission:role-edit')->only(['edit', 'update']);
         $this->middleware('permission:role-delete')->only('destroy');
@@ -20,21 +20,20 @@ class RoleController extends Controller
 
     public function index()
     {
-        Gate::authorize('role-view');
+        // We hide 'Owner' so it can't be deleted accidentally
         $roles = Role::where('name', '!=', 'Owner')->with('permissions')->paginate(10);
         return view('roles.index', compact('roles'));
     }
 
     public function create()
     {
-        Gate::authorize('role-create');
+        // Gate::authorize('role-create'); // Redundant due to middleware, but okay to keep
         $permissions = $this->getGroupedPermissions();
         return view('roles.create', compact('permissions'));
     }
 
     public function store(Request $request)
     {
-        Gate::authorize('role-create');
         $request->validate(['name' => 'required|string|unique:roles,name', 'permissions' => 'required|array']);
         $role = Role::create(['name' => $request->name]);
         $role->syncPermissions($request->permissions);
@@ -43,7 +42,6 @@ class RoleController extends Controller
 
     public function show(Role $role)
     {
-        Gate::authorize('role-view');
         $permissions = $role->permissions->groupBy(function($permission) {
             return explode('-', $permission->name)[0];
         });
@@ -52,7 +50,6 @@ class RoleController extends Controller
 
     public function edit(Role $role)
     {
-        Gate::authorize('role-edit');
         if ($role->name === 'Admin' || $role->name === 'Owner') {
             return redirect()->route('roles.index')->with('error', 'The Admin and Owner roles cannot be edited.');
         }
@@ -62,7 +59,6 @@ class RoleController extends Controller
 
     public function update(Request $request, Role $role)
     {
-        Gate::authorize('role-edit');
         if ($role->name === 'Admin' || $role->name === 'Owner') {
             return redirect()->route('roles.index')->with('error', 'The Admin and Owner roles cannot be edited.');
         }
@@ -74,7 +70,6 @@ class RoleController extends Controller
 
     public function destroy(Role $role)
     {
-        Gate::authorize('role-delete');
         if ($role->name === 'Admin' || $role->name === 'Owner') {
             return redirect()->route('roles.index')->with('error', 'The Admin and Owner roles cannot be deleted.');
         }
@@ -83,47 +78,64 @@ class RoleController extends Controller
     }
     
     /**
-     * THIS HELPER FUNCTION IS NOW MORE ROBUST
+     * Logic to group permissions into TABS for the View
      */
     private function getGroupedPermissions()
     {
         $permissions = Permission::all();
-        $actions = ['view', 'create', 'edit', 'delete'];
-        
-        $modulePrefixes = [
-            'user', 'role', 'business', 'client-login-credential', 'employee', 'department', 
-            'designation', 'salary-component', 'tax-rate', 'salary-sheet', 'payslip', 'payroll', 
-            'leave-type', 'leave-application'
+        $standardActions = ['list', 'view', 'create', 'edit', 'delete'];
+
+        // 1. Define the Tabs and which modules go inside them
+        $tabs = [
+            'Administration' => ['user', 'role', 'business', 'email-configuration'],
+            'HR Management'  => ['employee', 'department', 'designation', 'employee-exit', 'warning', 'incentive'],
+            'Payroll & Finance' => ['salary-component', 'tax-rate', 'salary-sheet', 'payroll', 'loan', 'fund', 'fund-transaction', 'final-settlement'],
+            'Leave & Attendance' => ['shift', 'shift-assignment', 'attendance', 'holiday', 'leave-type', 'leave-request', 'leave-encashment'],
+            'Task Management' => ['task', 'task-category', 'recurring-task'],
+            'Clients & Services' => ['client', 'client-credential', 'tax-service']
         ];
 
-        $grouped = [];
-        foreach ($modulePrefixes as $prefix) {
-            $modulePermissions = $permissions->filter(fn($p) => str_starts_with($p->name, $prefix . '-'));
-            if ($modulePermissions->isNotEmpty()) {
-                $standard = [];
-                $other = [];
-                foreach ($modulePermissions as $p) {
-                    $actionName = Str::after($p->name, $prefix . '-');
-                    if (in_array($actionName, $actions)) {
-                        $standard[$actionName] = $p;
-                    } else {
-                        $other[] = $p;
+        $categorized = [];
+
+        foreach ($tabs as $tabName => $prefixes) {
+            $tabPermissions = [];
+
+            foreach ($prefixes as $prefix) {
+                // Find permissions starting with this prefix (e.g., 'task-')
+                $modulePerms = $permissions->filter(function($p) use ($prefix) {
+                    return str_starts_with($p->name, $prefix . '-');
+                });
+
+                if ($modulePerms->isNotEmpty()) {
+                    $standard = [];
+                    $other = [];
+
+                    foreach ($modulePerms as $p) {
+                        // Extract the action (e.g., 'create' from 'task-create')
+                        $actionName = Str::after($p->name, $prefix . '-');
+                        
+                        if (in_array($actionName, $standardActions)) {
+                            $standard[$actionName] = $p;
+                        } else {
+                            $other[] = $p;
+                        }
                     }
+
+                    // Fix: Ensure 'list' maps to 'view' for the checkbox column if 'view' is missing
+                    if(!isset($standard['list']) && isset($standard['view'])) {
+                         $standard['list'] = $standard['view'];
+                    }
+
+                    $tabPermissions[$prefix] = [
+                        'standard' => $standard,
+                        'other' => collect($other)
+                    ];
                 }
-                // THIS IS THE FIX: Ensure both 'standard' and 'other' keys always exist
-                $grouped[$prefix] = [
-                    'standard' => $standard, 
-                    'other' => collect($other)
-                ];
+            }
+            if (!empty($tabPermissions)) {
+                $categorized[$tabName] = $tabPermissions;
             }
         }
-
-        // Manually categorize the grouped permissions into tabs
-        $categorized = [
-            'Administration' => array_intersect_key($grouped, array_flip(['user', 'role', 'business', 'client-login-credential'])),
-            'HR & Payroll' => array_intersect_key($grouped, array_flip(['employee', 'department', 'designation', 'salary-component', 'tax-rate', 'salary-sheet', 'payslip', 'payroll'])),
-            'Leave Management' => array_intersect_key($grouped, array_flip(['leave-type', 'leave-application']))
-        ];
         
         return $categorized;
     }

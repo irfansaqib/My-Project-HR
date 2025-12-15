@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'View Credential')
+@section('title', 'View Login Detail')
 
 @section('content')
 <div class="card">
@@ -14,7 +14,7 @@
     <div class="card-body">
         <div class="row">
             <div class="col-md-6">
-                <h4>Login Details</h4>
+                <h4>Authentication Details</h4>
                 <hr>
                 <dl class="row">
                     <dt class="col-sm-4">Portal</dt>

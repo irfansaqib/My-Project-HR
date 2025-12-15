@@ -98,8 +98,24 @@ Route::middleware('auth')->group(function () {
 
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
     Route::put('password', [PasswordController::class, 'update'])->name('password.update');
+
+    
+    Route::get('/notifications/mark-all', function () {
+    auth()->user()->unreadNotifications->markAsRead();
+    return back();
+    })->name('notifications.readAll');
+
+    Route::get('/notifications/{id}', function ($id) {
+        $notification = auth()->user()->notifications()->find($id);
+        if($notification) {
+            $notification->markAsRead();
+            return redirect($notification->data['url']);
+        }
+        return back();
+    })->name('notifications.read');
 });
     
+
 // ===========================
 // 📦 Authenticated Application
 // ===========================
@@ -146,6 +162,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('email-configuration/test', [EmailConfigurationController::class, 'test'])->name('email-configuration.test');
 
     Route::resource('business-bank-accounts', BusinessBankAccountController::class);
+
+    // Category Management
+    Route::resource('task-categories', \App\Http\Controllers\TaskCategoryController::class);
+
+    // API for Dependent Dropdowns (used in Task Forms)
+    Route::get('/api/categories/{parentId?}', [\App\Http\Controllers\TaskCategoryController::class, 'getChildren'])->name('api.categories.children');
 
     // ===========================
     // 👥 HR Management
@@ -291,6 +313,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('clients', ClientController::class);
     Route::post('clients/{client}/assign', [ClientController::class, 'assign'])->name('clients.assign');
     
+    // Place this ABOVE Route::resource('tasks', TaskController::class);
+    Route::get('tasks/client-requests', [TaskController::class, 'clientRequests'])->name('tasks.client_requests');
+   
     Route::resource('tasks', TaskController::class);
     Route::post('tasks/{task}/message', [TaskMessageController::class, 'store'])->name('tasks.messages.store');
     
@@ -307,7 +332,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('tasks/{task}/reassign', [TaskWorkflowController::class, 'reassignTask'])->name('tasks.reassign');
     Route::post('tasks/{task}/finalize', [TaskWorkflowController::class, 'finalizeTask'])->name('tasks.finalize');
     Route::post('tasks/{task}/reject-admin', [TaskWorkflowController::class, 'adminRejectExecution'])->name('tasks.admin.reject');
-
+    Route::post('tasks/{task}/extend', [TaskController::class, 'extendDueDate'])->name('tasks.extend');
+    
     // Admin Report
     Route::get('tasks-analytics/report', [App\Http\Controllers\TaskController::class, 'report'])->name('tasks.report');
 
@@ -411,28 +437,34 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 
 // ====================================================
-// 🌍 CLIENT PORTAL ROUTES (External Interface)
+// 🌍 CLIENT PORTAL ROUTES
 // ====================================================
-
 Route::prefix('portal')->name('client.')->group(function () {
     
-    // Guest Routes (Login/Register)
+    // GUEST ROUTES
     Route::middleware('guest')->group(function () {
-        Route::get('/login', [ClientAuthController::class, 'showLogin'])->name('login');
-        Route::post('/login', [ClientAuthController::class, 'login'])->name('login.submit');
-        Route::get('/register', [ClientAuthController::class, 'showRegister'])->name('register');
-        Route::post('/register', [ClientAuthController::class, 'register'])->name('register.submit');
-        
-        // Google Auth
+        // Login
+        Route::get('/login', [ClientAuthController::class, 'showLoginForm'])->name('login');
+        Route::post('/login', [ClientAuthController::class, 'login'])->name('login.post'); // <--- Matches blade
+
+        // Register
+        Route::get('/register', [ClientAuthController::class, 'showRegisterForm'])->name('register');
+        Route::post('/register', [ClientAuthController::class, 'register'])->name('register.post'); // <--- Matches blade
+
+        // Google
         Route::get('/auth/google', [ClientAuthController::class, 'redirectToGoogle'])->name('login.google');
         Route::get('/auth/google/callback', [ClientAuthController::class, 'handleGoogleCallback']);
     });
 
-    // Authenticated Client Routes
+    // AUTH ROUTES
     Route::middleware(['auth', 'role:Client'])->group(function () {
         Route::get('/dashboard', [ClientPortalController::class, 'dashboard'])->name('dashboard');
-        
-        // Task Management (Client Side)
+
+    // Documents and Messages Index
+    // ✅ CORRECTED: Remove "client." because the parent group adds it automatically
+    Route::get('/documents', [App\Http\Controllers\ClientDocumentController::class, 'index'])->name('documents.index');
+    Route::get('/messages', [App\Http\Controllers\ClientMessageController::class, 'index'])->name('messages.index');
+        // Task Management
         Route::get('/tasks', [ClientPortalController::class, 'indexTasks'])->name('tasks.index');
         Route::get('/tasks/create', [ClientPortalController::class, 'createTask'])->name('tasks.create');
         Route::post('/tasks/store', [ClientPortalController::class, 'storeTask'])->name('tasks.store');
@@ -441,4 +473,5 @@ Route::prefix('portal')->name('client.')->group(function () {
         Route::put('/tasks/{task}', [ClientPortalController::class, 'update'])->name('tasks.update');
         Route::post('/tasks/{task}/message', [TaskMessageController::class, 'store'])->name('tasks.messages.store');
     });
+   
 });

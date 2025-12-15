@@ -68,7 +68,7 @@
                         </div>
                     @endif
 
-                {{-- ADMIN ACTIONS --}}
+                {{-- ADMIN / CREATOR ACTIONS --}}
                 @elseif(Auth::user()->hasRole(['Admin', 'Owner']) || Auth::id() == $task->created_by)
                     @if($task->status == 'Executed')
                         <div class="alert alert-info small mb-2"><i class="fas fa-info-circle"></i> Review Required</div>
@@ -83,11 +83,12 @@
                         </form>
                     @endif
                     
+                    {{-- ADD SUPERVISOR --}}
                     <hr>
                     <button class="btn btn-link btn-sm pl-0 text-dark font-weight-bold" onclick="$('#supervisorBox').slideToggle()">
                         <i class="fas fa-user-plus mr-1"></i> Add Supervisor
                     </button>
-                    <div id="supervisorBox" style="display:none;" class="mt-2">
+                    <div id="supervisorBox" style="display:none;" class="mt-2 mb-2">
                         <form action="{{ route('tasks.supervisor', $task->id) }}" method="POST"> @csrf
                             <div class="input-group">
                                 <select name="supervisor_id" class="form-control form-control-sm">
@@ -100,6 +101,28 @@
                             </div>
                         </form>
                     </div>
+
+                    {{-- EXTEND DUE DATE BUTTON --}}
+                    <button class="btn btn-outline-warning btn-block btn-sm mt-2 text-dark font-weight-bold" 
+                            data-toggle="modal" data-target="#extendModal">
+                        <i class="fas fa-calendar-plus mr-1"></i> Extend Due Date
+                    </button>
+
+                    {{-- EXTENSION HISTORY (Small list below buttons) --}}
+                    @if($task->extensions && $task->extensions->count() > 0)
+                        <div class="mt-3 bg-light p-2 rounded border small">
+                            <strong class="text-muted">Extension History:</strong>
+                            <ul class="pl-3 mb-0 mt-1 text-muted" style="list-style: none;">
+                                @foreach($task->extensions as $ext)
+                                    <li class="mb-1">
+                                        <i class="fas fa-history text-warning mr-1"></i>
+                                        {{ $ext->old_due_date->format('d M') }} <i class="fas fa-arrow-right mx-1"></i> {{ $ext->new_due_date->format('d M') }}
+                                        <br><span style="font-size: 10px; margin-left: 15px;">by {{ $ext->changer->name ?? 'Admin' }} ({{ $ext->created_at->format('d M') }})</span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
                 @endif
             </div>
         </div>
@@ -127,14 +150,18 @@
                             <td class="pl-3 py-2 text-muted small font-weight-bold">Client</td>
                             <td class="py-2 text-primary font-weight-bold">{{ $task->client->business_name }}</td>
                         </tr>
+                        
+                        {{-- ✅ UPDATED CATEGORY SECTION (NULL-SAFE) --}}
                         <tr class="border-bottom bg-light">
                             <td class="pl-3 py-2 text-muted small font-weight-bold">Category</td>
                             <td class="py-2 small">
-                                <div class="text-muted">{{ $task->category->parent->parent->name ?? '' }}</div>
-                                <div class="text-muted">{{ $task->category->parent->name ?? '' }}</div>
-                                <div class="text-dark font-weight-bold">{{ $task->category->name }}</div>
+                                {{-- Use ?-> operator to prevent crashing if parent is missing --}}
+                                <div class="text-muted">{{ $task->category?->parent?->parent?->name }}</div>
+                                <div class="text-muted">{{ $task->category?->parent?->name }}</div>
+                                <div class="text-dark font-weight-bold">{{ $task->category?->name ?? 'Uncategorized' }}</div>
                             </td>
                         </tr>
+
                         <tr class="border-bottom">
                             <td class="pl-3 py-2 text-muted small font-weight-bold">Assigned To</td>
                             <td class="py-2">{{ $task->assignedEmployee->name ?? 'Unassigned' }}</td>
@@ -153,7 +180,12 @@
                         </tr>
                         <tr>
                             <td class="pl-3 py-2 text-muted small font-weight-bold">Due Date</td>
-                            <td class="py-2 text-danger font-weight-bold">{{ $task->due_date ? $task->due_date->format('d M, Y h:i A') : '-' }}</td>
+                            <td class="py-2 text-danger font-weight-bold">
+                                {{ $task->due_date ? $task->due_date->format('d M, Y h:i A') : '-' }}
+                                @if(method_exists($task, 'isOverdue') && $task->isOverdue())
+                                    <span class="badge badge-danger ml-1">OVERDUE</span>
+                                @endif
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -184,6 +216,39 @@
             <div class="card-body bg-light">
                 @include('tasks.partials.chat')
             </div>
+        </div>
+    </div>
+</div>
+
+{{-- MODALS SECTION --}}
+{{-- EXTEND DATE MODAL --}}
+<div class="modal fade" id="extendModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h6 class="modal-title text-dark font-weight-bold">Extend Deadline</h6>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <form action="{{ route('tasks.extend', $task->id) }}" method="POST">
+                @csrf
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="small font-weight-bold">Current Due Date</label>
+                        <input type="text" class="form-control form-control-sm" value="{{ $task->due_date ? $task->due_date->format('d M Y, h:i A') : 'N/A' }}" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label class="small font-weight-bold">New Due Date</label>
+                        <input type="datetime-local" name="new_due_date" class="form-control form-control-sm" required>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="small font-weight-bold">Reason for Extension</label>
+                        <textarea name="reason" rows="2" class="form-control form-control-sm" placeholder="e.g. Client delayed data..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer p-2">
+                    <button class="btn btn-warning btn-block btn-sm font-weight-bold">Confirm Extension</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

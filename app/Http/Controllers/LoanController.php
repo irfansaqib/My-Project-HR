@@ -9,6 +9,17 @@ use Illuminate\Support\Facades\Auth;
 
 class LoanController extends Controller
 {
+    public function __construct()
+{
+    $this->middleware('permission:loan-list')->only(['index', 'show']);
+    $this->middleware('permission:loan-create')->only(['create', 'store']);
+    $this->middleware('permission:loan-edit')->only(['edit', 'update']);
+    $this->middleware('permission:loan-delete')->only(['destroy']);
+    
+    // If you have a specific approval method:
+    // $this->middleware('permission:loan-approve')->only(['approve']);
+}
+    
     public function index()
     {
         $businessId = Auth::user()->business_id;

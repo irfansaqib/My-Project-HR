@@ -8,52 +8,172 @@ use App\Models\TaskCategory;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail; // Added for email logic if you uncomment it later
 
 class ClientPortalController extends Controller
 {
+    /**
+     * Client Dashboard
+     * Matches variables required by dashboard.blade.php
+     */
     public function dashboard()
     {
-        $client = Auth::user()->client; // Assuming User hasOne Client relationship
-        if (!$client) return redirect()->route('client.login')->with('error', 'No Client Profile Linked.');
+        $user = Auth::user();
+        $client = $user->client; // Assumes User -> hasOne -> Client
+        
+        // --- FIX: HANDLE MISSING CLIENT PROFILE WITHOUT REDIRECT LOOP ---
+        if (!$client) {
+            // If no client profile exists, we simply return the view with zero values.
+            // You can add an alert in your blade file: @if(!$client) <div class="alert">...</div> @endif
+            return view('client_portal.dashboard', [
+                'client' => null,
+                'activeTasks' => 0,
+                'pendingTasks' => 0,
+                'recentTasks' => collect([]), // Empty collection
+                'error' => 'Client profile not linked. Please contact support.'
+            ]);
+        }
 
-        $activeTasks = $client->tasks()->whereIn('status', ['In Progress', 'Pending'])->count();
-        $completedTasks = $client->tasks()->where('status', 'Completed')->count();
-        $recentTasks = $client->tasks()->latest()->take(5)->get();
+        // 1. Active Tasks (Open or In Progress)
+        $activeTasks = $client->tasks()
+                        ->whereIn('status', ['Open', 'In Progress'])
+                        ->count();
 
-        return view('client_portal.dashboard', compact('client', 'activeTasks', 'completedTasks', 'recentTasks'));
+        // 2. Pending Tasks (Waiting for Approval)
+        $pendingTasks = $client->tasks()
+                        ->where('status', 'Pending')
+                        ->count();
+
+        // 3. Recent Tasks
+        $recentTasks = $client->tasks()
+                        ->with('category')
+                        ->latest()
+                        ->take(5)
+                        ->get();
+
+        return view('client_portal.dashboard', compact('client', 'activeTasks', 'pendingTasks', 'recentTasks'));
     }
-
+    /**
+     * List all Tasks
+     */
     public function indexTasks()
     {
         $client = Auth::user()->client;
-        $tasks = $client->tasks()->with(['category', 'assignedEmployee'])->latest()->paginate(10);
+        if (!$client) abort(403, 'Client profile not found');
+
+        $tasks = $client->tasks()
+                    ->with(['category', 'assignedEmployee'])
+                    ->latest()
+                    ->paginate(10);
+                    
         return view('client_portal.tasks.index', compact('tasks'));
     }
 
+    /**
+     * Show Create Task Form
+     */
     public function createTask()
     {
-        // Fetch Level 0 Categories (Taxation, Accounting, etc.)
-        // We load children recursively for the JS to handle, or we can use AJAX. 
-        // For simplicity and speed, passing structured JSON is often easier for 3-level selects.
+        // Fetch Level 0 Categories with nested children
         $categories = TaskCategory::where('level', 0)->with('children.children')->get();
         return view('client_portal.tasks.create', compact('categories'));
     }
     
+    /**
+     * Store New Task
+     */
+    public function storeTask(Request $request)
+    {
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'required|string',
+            'priority' => 'required|in:Low,Normal,High,Urgent',
+            'due_date' => 'nullable|date',
+            'attachment' => 'nullable|file|max:10240',
+        ]);
+
+        // Handle File Upload
+        $path = null;
+        if ($request->hasFile('attachment')) {
+            $path = $request->file('attachment')->store('task_attachments', 'public');
+        }
+
+        // Get the Client Profile associated with the logged-in User
+        // Assuming the Logged in User has a 'client' relationship or is the client
+        $user = Auth::user();
+        $clientProfile = $user->client; // Ensure your User model has this relationship
+
+        // AUTOMATION LOGIC: Check for Default Employee
+        $assignedTo = null;
+        $status = 'Pending'; // Default status
+        
+        if ($clientProfile && $clientProfile->defaultEmployee) {
+            $assignedTo = $clientProfile->defaultEmployee->id;
+            $status = 'In Progress'; // Automatically mark as In Progress since it's assigned
+        }
+
+        // Create the Task
+        $task = Task::create([
+            'title' => $request->title,
+            'description' => $request->description,
+            'priority' => $request->priority,
+            'due_date' => $request->due_date,
+            'status' => $status, 
+            'client_id' => $clientProfile->id ?? null,
+            'created_by' => $user->id,
+            'assigned_to' => $assignedTo, // <--- HERE IS THE AUTOMATION
+            'attachment_path' => $path,
+        ]);
+
+        // NOTIFICATION LOGIC
+        if ($assignedTo) {
+            // Notify the specific employee immediately
+            $employeeUser = \App\Models\User::where('employee_id', $assignedTo)->first();
+            if ($employeeUser) {
+                $employeeUser->notify(new \App\Notifications\TaskAlert($task, 'assigned', "New Client Task Auto-Assigned: " . $task->title));
+            }
+        } else {
+            // Fallback: Notify Admins if no one was auto-assigned
+            // (Your existing admin notification logic goes here)
+        }
+
+        return redirect()->route('client.tasks.index')->with('success', 'Request submitted successfully.');
+    }
+
+    /**
+     * Show Task Details
+     */
+    public function showTask(Task $task)
+    {
+        // Security Check: Ensure task belongs to logged-in client
+        if ($task->client_id !== Auth::user()->client->id) {
+            abort(403);
+        }
+
+        $task->load(['messages.sender', 'assignedEmployee', 'category']);
+        return view('client_portal.tasks.show', compact('task'));
+    }
+
+    /**
+     * Show Edit Form
+     */
     public function edit(Task $task)
     {
-        // Security: Ensure task belongs to client
         if($task->client_id !== Auth::user()->client->id) abort(403);
 
         $categories = TaskCategory::where('level', 0)->with('children.children')->get();
         
-        // Resolve Category IDs for Dropdowns
-        $selectedLvl2 = $task->task_category_id; // The saved ID
+        // Resolve Category IDs for pre-selecting dropdowns
+        $selectedLvl2 = $task->task_category_id;
         $selectedLvl1 = $task->category->parent_id ?? null;
         $selectedLvl0 = $task->category->parent->parent_id ?? null;
 
         return view('client_portal.tasks.edit', compact('task', 'categories', 'selectedLvl0', 'selectedLvl1', 'selectedLvl2'));
     }
 
+    /**
+     * Update Task
+     */
     public function update(Request $request, Task $task)
     {
         if($task->client_id !== Auth::user()->client->id) abort(403);
@@ -72,75 +192,6 @@ class ClientPortalController extends Controller
             'due_date' => $request->due_date,
         ]);
 
-        // Attachment logic would go here
-
         return redirect()->route('client.tasks.index')->with('success', 'Task updated successfully.');
-    }
-
-    public function showTask(Task $task)
-    {
-        // Security Check
-        if ($task->client_id !== Auth::user()->client->id) {
-            abort(403);
-        }
-
-        $task->load(['messages.sender', 'assignedEmployee', 'category']);
-        return view('client_portal.tasks.show', compact('task'));
-    }
-
-    public function storeTask(Request $request)
-    {
-        $request->validate([
-            'category_id' => 'required|exists:task_categories,id', // This should be the Level 2 ID
-            'description' => 'required|string|max:1000',
-            'priority'    => 'required|in:Normal,Urgent,Very Urgent',
-            'due_date'    => 'nullable|date|after:today',
-            'attachments.*' => 'nullable|file|max:5120', // 5MB max
-        ]);
-
-        $client = Auth::user()->client;
-
-        DB::beginTransaction();
-        try {
-            // Auto-Generate Task Number (e.g., TSK-2025-0001)
-            $lastTask = Task::latest('id')->first();
-            $nextId = $lastTask ? $lastTask->id + 1 : 1;
-            $taskNumber = 'TSK-' . date('Y') . '-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
-
-            $task = Task::create([
-                'task_number' => $taskNumber,
-                'client_id' => $client->id,
-                'task_category_id' => $request->category_id,
-                'created_by' => Auth::id(),
-                'description' => $request->description,
-                'priority' => $request->priority,
-                'status' => 'Pending',
-                'due_date' => $request->due_date,
-            ]);
-
-            // Handle Attachments (Placeholder logic - assuming you have a Media or Attachment model later)
-            // if($request->hasFile('attachments')) { ... }
-
-            DB::commit();
-            return redirect()->route('client.tasks.index')->with('success', 'Task Submitted Successfully. Reference: ' . $taskNumber);
-            
-            / 1. Find Admins (Or a specific email)
-            $admins = User::role(['Admin', 'Owner'])->get(); 
-
-            // 2. Send Email
-            foreach($admins as $admin) {
-                if($admin->email) {
-                    Mail::to($admin->email)->send(new TaskNotification($task, 'created'));
-                }
-            }
-
-            // 3. Optional: Send copy to Client
-            if(Auth::user()->email) {
-                Mail::to(Auth::user()->email)->send(new TaskNotification($task, 'created', 'Your request has been received.'));
-            }
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', 'Error creating task: ' . $e->getMessage())->withInput();
-        }
     }
 }

@@ -9,11 +9,20 @@ use Illuminate\Support\Facades\Redirect;
 
 class ClientCredentialController extends Controller
 {
+
+    public function __construct()
+    {
+        $this->middleware('permission:login_details-list|login_details-create|login_details-edit|login_details-delete', ['only' => ['index', 'show']]);
+        $this->middleware('permission:login_details-create', ['only' => ['create', 'store']]);
+        $this->middleware('permission:login_details-edit', ['only' => ['edit', 'update']]);
+        $this->middleware('permission:login_details-delete', ['only' => ['destroy']]);
+    }
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
+        // Using generic variable name $loginDetails to avoid confusion
         $query = ClientCredential::where('user_id', Auth::id());
 
         if ($request->has('search') && $request->search != '') {
@@ -29,7 +38,14 @@ class ClientCredentialController extends Controller
             });
         }
 
+        // Get results
         $credentials = $query->get();
+
+        // Check if request is AJAX (Live Search)
+        if ($request->ajax()) {
+            // We pass 'credentials' because the partial view expects that variable name
+            return view('client-credentials.partials.table_body', compact('credentials'))->render();
+        }
 
         return view('client-credentials.index', compact('credentials'));
     }
@@ -66,7 +82,9 @@ class ClientCredentialController extends Controller
 
         $dataToSave = array_merge($validated, ['user_id' => Auth::id()]);
         ClientCredential::create($dataToSave);
-        return Redirect::route('client-credentials.index')->with('success', 'Credential created successfully!');
+        
+        // Updated Success Message
+        return Redirect::route('client-credentials.index')->with('success', 'Login Detail created successfully!');
     }
 
     /**
@@ -112,7 +130,9 @@ class ClientCredentialController extends Controller
         ]);
 
         $clientCredential->update($validated);
-        return Redirect::route('client-credentials.index')->with('success', 'Credential updated successfully!');
+        
+        // Updated Success Message
+        return Redirect::route('client-credentials.index')->with('success', 'Login Detail updated successfully!');
     }
 
     public function destroy(ClientCredential $clientCredential)
@@ -122,6 +142,8 @@ class ClientCredentialController extends Controller
         }
 
         $clientCredential->delete();
-        return Redirect::route('client-credentials.index')->with('success', 'Credential deleted successfully!');
+        
+        // Updated Success Message
+        return Redirect::route('client-credentials.index')->with('success', 'Login Detail deleted successfully!');
     }
 }

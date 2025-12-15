@@ -10,10 +10,10 @@
     .status-row-completed td { color: #28a745; font-weight: 600; } /* Green */
     .status-row-closed td { color: #155724; font-weight: 600; } /* Dark Green */
     
-    /* Overdue Overrides */
-    .status-row-overdue td { color: #b21f2d !important; font-weight: 700; } 
+    /* Overdue Overrides (applies to the specific Overdue Tag primarily) */
+    .overdue-tag { font-size: 10px; letter-spacing: 0.5px; vertical-align: middle; }
     
-    /* Keep Action Button Normal */
+    /* Keep Action Button Normal Color */
     .table td.action-cell { color: inherit !important; }
 </style>
 
@@ -137,10 +137,10 @@
                         <th>Task #</th>
                         <th>Assigned To</th>
                         <th>Client</th>
-                        <th>Category</th> {{-- NEW COLUMN --}}
+                        <th>Category</th>
                         <th>Assigned On</th>
                         <th>Due Date</th>
-                        <th>Status</th>
+                        <th style="min-width: 140px;">Status</th>
                         <th>Time Spent</th>
                         <th>Action</th>
                     </tr>
@@ -148,14 +148,15 @@
                 <tbody>
                     @foreach($tasks as $task)
                     @php
-                        // Determine Row Class for Color
+                        // Determine Row Class for Color (Base font color)
                         $rowClass = 'status-row-pending';
                         if($task->status == 'In Progress') $rowClass = 'status-row-progress';
                         elseif($task->status == 'Executed') $rowClass = 'status-row-executed';
                         elseif($task->status == 'Completed') $rowClass = 'status-row-completed';
                         elseif($task->status == 'Closed') $rowClass = 'status-row-closed';
                         
-                        if($task->isOverdue()) $rowClass = 'status-row-overdue';
+                        // If overdue, we might want the whole row red, OR just the status column.
+                        // Using your previous request: font color based on status.
                     @endphp
 
                     <tr class="{{ $rowClass }}">
@@ -168,7 +169,24 @@
                         </td>
                         <td>{{ $task->created_at->format('d-M-y') }}</td>
                         <td>{{ $task->due_date ? $task->due_date->format('d-M-y') : '-' }}</td>
-                        <td>{{ $task->status }}</td>
+                        
+                        {{-- STATUS COLUMN with Overdue Tag --}}
+                        <td>
+                            <div>{{ $task->status }}</div>
+                            
+                            @if($task->isOverdue())
+                                <span class="badge badge-danger overdue-tag">
+                                    <i class="fas fa-exclamation-circle mr-1"></i> Overdue
+                                </span>
+                            @endif
+                            
+                            @if(method_exists($task, 'extensionCount') && $task->extensionCount() > 0)
+                                <div class="text-muted small" style="font-size: 10px; line-height: 1;">
+                                    <i class="fas fa-history mr-1"></i> Ext ({{ $task->extensionCount() }})
+                                </div>
+                            @endif
+                        </td>
+                        
                         <td>{{ $task->formattedTotalTime() }}</td>
                         <td class="action-cell">
                             <a href="{{ route('tasks.show', $task->id) }}" class="btn btn-xs btn-outline-primary"><i class="fas fa-eye"></i></a>

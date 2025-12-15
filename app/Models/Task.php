@@ -14,52 +14,33 @@ class Task extends Model
     protected $casts = [
         'start_date' => 'datetime',
         'due_date' => 'datetime',
+        'completed_at' => 'datetime',
+        'executed_at' => 'datetime',
     ];
 
     // ===========================
     // 🔗 RELATIONSHIPS
     // ===========================
 
-    /**
-     * The Client this task belongs to.
-     */
     public function client()
     {
         return $this->belongsTo(Client::class);
     }
 
-    /**
-     * The Category (Service) of the task.
-     * Maps to the 'task_category_id' column.
-     */
     public function category()
-    {
-        return $this->belongsTo(TaskCategory::class, 'task_category_id');
-    }
+{
+    // Point to your ACTUAL existing model
+    return $this->belongsTo(TaskCategory::class, 'category_id');
+}
 
-    /**
-     * The Employee assigned to work on this task.
-     * Maps to 'assigned_to'.
-     */
     public function assignedEmployee()
     {
         return $this->belongsTo(Employee::class, 'assigned_to');
     }
 
-    /**
-     * The User who created the task (could be Admin or Client).
-     */
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
-    }
-
-    /**
-     * Chat messages associated with this task.
-     */
-    public function messages()
-    {
-        return $this->hasMany(ClientMessage::class)->orderBy('created_at', 'asc');
     }
 
     public function supervisor()
@@ -67,33 +48,27 @@ class Task extends Model
         return $this->belongsTo(User::class, 'supervisor_id');
     }
 
+    // ✅ MESSAGES (Chat History)
+    public function messages()
+    {
+        return $this->hasMany(TaskMessage::class)->orderBy('created_at', 'asc');
+    }
+
+    // ✅ EXTENSIONS (Due Date History)
+    public function extensions()
+    {
+        return $this->hasMany(TaskExtension::class)->orderBy('created_at', 'desc');
+    }
+
+    // ✅ TIMERS (Time Tracking)
     public function timeLogs()
     {
         return $this->hasMany(TaskTimeLog::class);
     }
 
-    // Check if the current user has an active timer running on this task
     public function activeTimer()
     {
-        return $this->hasOne(TaskTimeLog::class)
-                    ->where('user_id', \Illuminate\Support\Facades\Auth::id())
-                    ->whereNull('stopped_at')
-                    ->latest();
-    }
-
-    // Calculate total time spent in minutes
-    public function totalTimeSpent()
-    {
-        return $this->timeLogs()->sum('duration_minutes');
-    }
-    
-    // Format duration nicely (e.g., "2h 15m")
-    public function formattedTotalTime()
-    {
-        $minutes = $this->totalTimeSpent();
-        $h = floor($minutes / 60);
-        $m = $minutes % 60;
-        return "{$h}h {$m}m";
+        return $this->hasOne(TaskTimeLog::class)->whereNull('stopped_at')->latest();
     }
 
     // ===========================
@@ -101,13 +76,39 @@ class Task extends Model
     // ===========================
 
     /**
-     * Check if the task is overdue.
+     * Check if the task is Overdue.
+     * Logic: Due date passed AND status is not Completed/Closed.
      */
     public function isOverdue()
     {
-        // If not completed/closed AND due date has passed
-        return !in_array($this->status, ['Completed', 'Closed']) 
-            && $this->due_date 
-            && $this->due_date < now();
+        if (in_array($this->status, ['Completed', 'Closed'])) {
+            return false;
+        }
+        
+        return $this->due_date && $this->due_date < now();
+    }
+
+    /**
+     * Count how many times the due date was extended.
+     */
+    public function extensionCount()
+    {
+        return $this->extensions()->count();
+    }
+
+    /**
+     * Calculate total time spent in "1h 30m" format.
+     */
+    public function formattedTotalTime()
+    {
+        $totalMinutes = $this->timeLogs->sum(function($log) {
+            $end = $log->stopped_at ?? now();
+            return $log->started_at->diffInMinutes($end);
+        });
+
+        $hours = floor($totalMinutes / 60);
+        $minutes = $totalMinutes % 60;
+
+        return "{$hours}h {$minutes}m";
     }
 }
