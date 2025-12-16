@@ -51,7 +51,7 @@
 
       /* PROJECT TEXT STYLING */
       .brand-text {
-          color: #007bff; 
+          color: ##2b2d30ff; 
           font-weight: 700; 
           font-size: 1.25rem; 
           line-height: 1.2;

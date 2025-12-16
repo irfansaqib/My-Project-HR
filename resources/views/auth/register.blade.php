@@ -50,7 +50,7 @@
 
       /* ✅ UPDATED PROJECT TEXT STYLING */
       .brand-text {
-          color: #007bff; /* Changed to Blue to match Logo */
+          color: #2b2d30ff; /* Changed to Blue to match Logo */
           font-weight: 700; 
           font-size: 1.25rem; /* Reduced Size (was 1.5rem) */
           line-height: 1.2;
