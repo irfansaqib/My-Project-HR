@@ -154,6 +154,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::resource('business', BusinessController::class)->only(['show', 'edit', 'update']);
+    
+    // ✅ Generate Portal code:
+    Route::post('business/generate-code', [BusinessController::class, 'generatePortalCode'])->name('business.generate-code');
     Route::resource('users', UserController::class);
     Route::resource('roles', RoleController::class);
 

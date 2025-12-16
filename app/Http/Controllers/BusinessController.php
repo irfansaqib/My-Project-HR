@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Business;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -84,5 +85,31 @@ class BusinessController extends Controller
         return redirect()
             ->route('business.show', $business)
             ->with('success', 'Business details updated successfully.');
+    }
+   
+    /**
+     * Generate a unique Portal Code for the authenticated user's business.
+     */
+    public function generatePortalCode(Request $request)
+    {
+        $business = Auth::user()->business;
+        $this->authorize('update', $business);
+
+        // Safety: Don't overwrite if it already exists
+        if (!empty($business->portal_code)) {
+            return back()->with('error', 'A Portal Code already exists for this business.');
+        }
+
+        // Logic: Slug of Legal Name + Random 4 chars
+        // Example: "ZAF Consultants" -> "ZAF-CONSULTANTS-A1B2"
+        $slug = Str::slug($business->legal_name);
+        $random = strtoupper(Str::random(4));
+        $portalCode = strtoupper($slug . '-' . $random);
+
+        // Save
+        $business->portal_code = $portalCode;
+        $business->save();
+
+        return back()->with('success', 'Portal Code generated successfully.');
     }
 }

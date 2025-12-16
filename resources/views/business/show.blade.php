@@ -57,6 +57,33 @@
 
                 <strong><i class="fas fa-envelope mr-1"></i> Contact Email</strong>
                 <p class="text-muted">{{ $business->email ?: 'N/A' }}</p>
+
+                <hr>
+                
+                <strong><i class="fas fa-globe mr-1"></i> Client Portal Access</strong>
+                <div class="mt-2">
+                    @if($business->portal_code)
+                        <div class="alert alert-light border d-flex justify-content-between align-items-center" style="background-color: #f8f9fa;">
+                            <div>
+                                <span class="text-muted small d-block">Portal Code:</span>
+                                <span class="h5 mb-0 text-primary font-weight-bold" id="portalCodeText">{{ $business->portal_code }}</span>
+                            </div>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="copyPortalCode()">
+                                <i class="far fa-copy"></i> Copy
+                            </button>
+                        </div>
+                    @else
+                        <div class="alert alert-warning p-2 small">
+                            <i class="fas fa-exclamation-triangle mr-1"></i> Not Assigned
+                        </div>
+                        <form action="{{ route('business.generate-code') }}" method="POST">
+                            @csrf
+                            <button type="submit" class="btn btn-success btn-sm">
+                                <i class="fas fa-magic mr-1"></i> Generate Portal Code
+                            </button>
+                        </form>
+                    @endif
+                </div>
             </div>
 
             <div class="card-footer bg-light d-flex justify-content-between">
@@ -72,4 +99,16 @@
         </div>
     </div>
 </div>
+
+<script>
+    function copyPortalCode() {
+        var range = document.createRange();
+        range.selectNode(document.getElementById("portalCodeText"));
+        window.getSelection().removeAllRanges(); 
+        window.getSelection().addRange(range); 
+        document.execCommand("copy");
+        window.getSelection().removeAllRanges();
+        alert("Portal Code copied to clipboard!");
+    }
+</script>
 @endsection
