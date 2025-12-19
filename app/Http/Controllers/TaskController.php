@@ -13,22 +13,22 @@ use Illuminate\Support\Facades\DB;
 class TaskController extends Controller
 {
     public function __construct()
-{
-    // 1. View & List Access
-    $this->middleware('permission:task-list')->only(['index', 'show', 'myTasks']);
-    
-    // 2. Creation Access
-    $this->middleware('permission:task-create')->only(['create', 'store']);
-    
-    // 3. Edit/Update Access
-    $this->middleware('permission:task-edit')->only(['edit', 'update', 'extendDueDate']);
-    
-    // 4. Delete Access
-    $this->middleware('permission:task-delete')->only(['destroy']);
-    
-    // 5. Special Reporting Access
-    $this->middleware('permission:task-report')->only(['report']);
-}
+    {
+        // 1. View & List Access
+        $this->middleware('permission:task-list')->only(['index', 'show', 'myTasks']);
+        
+        // 2. Creation Access
+        $this->middleware('permission:task-create')->only(['create', 'store']);
+        
+        // 3. Edit/Update Access
+        $this->middleware('permission:task-edit')->only(['edit', 'update', 'extendDueDate']);
+        
+        // 4. Delete Access
+        $this->middleware('permission:task-delete')->only(['destroy']);
+        
+        // 5. Special Reporting Access
+        $this->middleware('permission:task-report')->only(['report']);
+    }
     
     public function index(Request $request)
     {
@@ -45,7 +45,7 @@ class TaskController extends Controller
             });
         }
 
-        // Search Filter (as per PDF)
+        // Search Filter
         if ($request->has('search') && $request->search != '') {
             $s = $request->search;
             $query->where(function($q) use ($s) {
@@ -73,7 +73,7 @@ class TaskController extends Controller
     {
         $request->validate([
             'client_id' => 'required',
-            'category_id' => 'required', // Level 2 ID
+            'category_id' => 'required|exists:task_categories,id', // Level 2 ID
             'assigned_to' => 'required',
             'priority' => 'required',
             'description' => 'required',
@@ -83,12 +83,10 @@ class TaskController extends Controller
 
         DB::beginTransaction();
         try {
-            // Generate Task ID: TSK-YYYY-0001
-            $lastId = Task::max('id') ?? 0;
-            $taskNumber = 'TSK-' . date('Y') . '-' . str_pad($lastId + 1, 4, '0', STR_PAD_LEFT);
-
-            Task::create([
-                'task_number' => $taskNumber,
+            // 1. Create Task with a Temporary Unique Placeholder
+            // We use uniqid() to ensure the temporary string is unique during the transaction
+            $task = Task::create([
+                'task_number' => 'TEMP-' . uniqid(), 
                 'client_id' => $request->client_id,
                 'task_category_id' => $request->category_id,
                 'assigned_to' => $request->assigned_to,
@@ -100,25 +98,17 @@ class TaskController extends Controller
                 'status' => 'Pending'
             ]);
 
+            // 2. Generate Number based on the ACTUAL Database ID
+            // Format: TSK-MM-YYYY-0000 (e.g., TSK-12-2025-0045)
+            $taskNumber = 'TSK-' . date('m') . '-' . date('Y') . '-' . str_pad($task->id, 4, '0', STR_PAD_LEFT);
+
+            // 3. Update the Task with the correct Number
+            $task->update([
+                'task_number' => $taskNumber
+            ]);
+
             DB::commit();
-            return redirect()->route('tasks.index')->with('success', 'Task Created Successfully.');
-
-            // Notify Assigned Employee
-            if ($task->assignedEmployee && $task->assignedEmployee->email) {
-                Mail::to($task->assignedEmployee->email)->send(new TaskNotification($task, 'assigned'));
-            }
-
-            // ... Inside update() method, AFTER $task->update(...) ...
-
-            // Check if Status Changed (You might need to capture old status before update if you want strict checking, but sending on every update is okay too)
-            if ($request->has('status') && $task->client->email) {
-                Mail::to($task->client->email)->send(new TaskNotification($task, 'status'));
-            }
-
-            // If reassigned, notify new employee
-            if ($request->has('assigned_to') && $task->assignedEmployee) {
-                Mail::to($task->assignedEmployee->email)->send(new TaskNotification($task, 'assigned'));
-            }
+            return redirect()->route('tasks.index')->with('success', 'Task Created Successfully: ' . $taskNumber);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -128,7 +118,7 @@ class TaskController extends Controller
 
     public function edit(Task $task)
     {
-        // Authorization Check (As per PDF)
+        // Authorization Check
         if (!Auth::user()->hasRole(['Admin', 'Owner']) && Auth::id() !== $task->created_by) {
             return abort(403, 'Unauthorized. Only Admin or Creator can edit.');
         }
@@ -151,7 +141,10 @@ class TaskController extends Controller
             return abort(403);
         }
 
-        $request->validate(['category_id' => 'required', 'description' => 'required']);
+        $request->validate([
+            'category_id' => 'required|exists:task_categories,id',
+            'description' => 'required'
+        ]);
 
         $task->update([
             'client_id' => $request->client_id,
@@ -164,7 +157,7 @@ class TaskController extends Controller
             'status' => $request->status,
         ]);
 
-        return redirect()->route('tasks.index')->with('success', 'Task Updated.');
+        return redirect()->route('tasks.index')->with('success', 'Task Updated Successfully.');
     }
 
     public function show(Task $task)
@@ -207,7 +200,7 @@ class TaskController extends Controller
             'due_date' => $request->new_due_date
         ]);
 
-        // 5. Add a system message to chat (Optional but good for visibility)
+        // 5. Add a system message to chat
         $task->messages()->create([
             'sender_id' => auth()->id(),
             'message' => "📅 DUE DATE EXTENDED: From " . 
@@ -254,7 +247,6 @@ class TaskController extends Controller
         return back()->with('success', 'Task Deleted.');
     }
 
-    // Admin Tasks Report
     public function report(Request $request)
     {
         $query = \App\Models\Task::query();
@@ -269,40 +261,37 @@ class TaskController extends Controller
             $query->where('client_id', $request->client_id);
         }
 
-        // 3. Assigned By Filter (New)
+        // 3. Assigned By Filter
         if($request->assigned_by) {
             $query->where('created_by', $request->assigned_by);
         }
 
-        // 4. Status Filter (Updated with In Process)
+        // 4. Status Filter
         if($request->status && $request->status != 'All') {
             if ($request->status == 'Completed') {
                 $query->whereIn('status', ['Completed', 'Closed']);
             } elseif ($request->status == 'Overdue') {
                 $query->whereDate('due_date', '<', now())->whereNotIn('status', ['Completed', 'Closed']);
             } else {
-                // Matches 'Pending', 'In Progress', 'Executed' exactly
                 $query->where('status', $request->status);
             }
         }
 
-        // 5. Date Filters (New)
+        // 5. Date Filters
         if($request->assigned_date) {
-            // Assuming "Assigned On" refers to creation date
             $query->whereDate('created_at', $request->assigned_date);
         }
         if($request->due_date) {
             $query->whereDate('due_date', $request->due_date);
         }
 
-        // Eager load category to prevent N+1 issue
         $tasks = $query->with(['client', 'assignedEmployee', 'category', 'creator'])->latest()->paginate(20);
 
         // Stats Logic
         $stats = [
             'total' => $query->count(),
             'completed' => (clone $query)->whereIn('status', ['Completed', 'Closed'])->count(),
-            'in_progress' => (clone $query)->where('status', 'In Progress')->count(), // Added In Progress Count
+            'in_progress' => (clone $query)->where('status', 'In Progress')->count(),
             'overdue' => (clone $query)->whereDate('due_date', '<', now())->whereNotIn('status', ['Completed', 'Closed'])->count(),
             'avg_time' => 0 
         ];
@@ -310,22 +299,17 @@ class TaskController extends Controller
         // Dropdowns
         $employees = \App\Models\Employee::where('status', 'active')->orderBy('name')->get();
         $clients = \App\Models\Client::where('status', 'active')->orderBy('business_name')->get();
-        
-        // Get list of users who have assigned tasks
         $assigners = \App\Models\User::whereHas('createdTasks')->distinct()->get();
 
         return view('tasks.report', compact('tasks', 'stats', 'employees', 'clients', 'assigners'));
     }
 
-    // Add this method inside TaskController class
     public function clientRequests()
     {
-        // Fetch tasks created by Clients that are NOT yet completed
-        // Assuming 'created_by' links to a User who has the 'Client' role
         $tasks = \App\Models\Task::whereHas('creator', function($query) {
-                $query->role('Client'); // Requires Spatie Permission
+                $query->role('Client'); 
             })
-            ->where('status', '!=', 'Completed') // Show pending/in-progress
+            ->where('status', '!=', 'Completed') 
             ->with(['client', 'assignedEmployee', 'creator'])
             ->latest()
             ->get();

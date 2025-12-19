@@ -2,6 +2,10 @@
 @section('header', 'My Dashboard')
 
 @section('content')
+
+{{-- ✅ DISPLAY ANNOUNCEMENTS HERE (Clients will only see 'Visible to Client' ones) --}}
+@include('announcements.partials.display')
+
 <div class="row mb-4">
     <div class="col-md-4">
         <div class="card card-stat p-3 bg-white border-start border-4 border-primary">

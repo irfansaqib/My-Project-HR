@@ -40,6 +40,10 @@ use App\Http\Controllers\ClientCredentialController;
 use App\Http\Controllers\BulkTaxCalculatorController;
 use App\Http\Controllers\TaxServicesController; 
 use App\Http\Controllers\TaxClientComponentController;
+use App\Http\Controllers\ClientMessageController;
+use App\Http\Controllers\ClientDocumentController;
+use App\Http\Controllers\AdminDocumentController;
+use App\Http\Controllers\AnnouncementController;
 
 // ** NEW MODULE IMPORTS **
 use App\Http\Controllers\ClientController;
@@ -113,6 +117,20 @@ Route::middleware('auth')->group(function () {
         }
         return back();
     })->name('notifications.read');
+    
+    Route::middleware(['auth'])->group(function () {
+        // View Documents for a Client
+        Route::get('/clients/{client}/documents', [ClientDocumentController::class, 'index'])->name('client.documents.index');
+        
+        // Upload Document
+        Route::post('/clients/{client}/documents', [ClientDocumentController::class, 'store'])->name('client.documents.store');
+        
+        // Download Document
+        Route::get('/client-documents/{id}/download', [ClientDocumentController::class, 'download'])->name('client.documents.download');
+        
+        // Delete Document
+        Route::delete('/client-documents/{id}', [ClientDocumentController::class, 'destroy'])->name('client.documents.destroy');
+    });
 });
     
 
@@ -297,7 +315,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('salaries/my-history', [SalaryController::class, 'myHistory'])->name('salaries.my-history');
     Route::get('my-tax-certificate', [SalaryController::class, 'myTaxCertificate'])->name('salaries.my-tax');
     
-    // ✅ THIS IS THE MISSING ROUTE FIXING YOUR ERROR
     Route::get('my-tasks', [TaskController::class, 'myTasks'])->name('tasks.my'); 
     
     Route::post('tax-certificate/view', [SalaryController::class, 'viewTaxCertificate'])->name('salaries.tax.view');
@@ -316,7 +333,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('clients', ClientController::class);
     Route::post('clients/{client}/assign', [ClientController::class, 'assign'])->name('clients.assign');
     
-    // Place this ABOVE Route::resource('tasks', TaskController::class);
     Route::get('tasks/client-requests', [TaskController::class, 'clientRequests'])->name('tasks.client_requests');
    
     Route::resource('tasks', TaskController::class);
@@ -436,6 +452,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return response()->json(['success' => true, 'monthly_tax' => $tax]);
     })->name('api.tax.calculate');
 
+    // ==========================================
+    // 📂 ADMIN DOCUMENT ROUTES
+    // ==========================================
+    Route::middleware(['auth'])->prefix('admin/documents')->name('admin.documents.')->group(function () {
+        Route::get('/', [AdminDocumentController::class, 'index'])->name('clients');
+        Route::get('/{id}', [AdminDocumentController::class, 'show'])->name('show');
+    });
+
+    // ==========================================
+    // 📢 ANNOUNCEMENTS ROUTES (FIXED & MOVED)
+    // ==========================================
+    Route::middleware(['auth'])->prefix('admin/announcements')->name('admin.announcements.')->group(function () {
+        Route::get('/', [AnnouncementController::class, 'index'])->name('index');
+        Route::post('/store', [AnnouncementController::class, 'store'])->name('store');
+        Route::get('/{id}/edit', [AnnouncementController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [AnnouncementController::class, 'update'])->name('update');
+        Route::delete('/{id}', [AnnouncementController::class, 'destroy'])->name('destroy');
+    });
+
 }); // ✅ Closing Authenticated Middleware Group
 
 
@@ -444,36 +479,48 @@ Route::middleware(['auth', 'verified'])->group(function () {
 // ====================================================
 Route::prefix('portal')->name('client.')->group(function () {
     
-    // GUEST ROUTES
+    // ----------------------------
+    // 1. GUEST ROUTES (No Login Required)
+    // ----------------------------
     Route::middleware('guest')->group(function () {
         // Login
         Route::get('/login', [ClientAuthController::class, 'showLoginForm'])->name('login');
-        Route::post('/login', [ClientAuthController::class, 'login'])->name('login.post'); // <--- Matches blade
+        Route::post('/login', [ClientAuthController::class, 'login'])->name('login.post');
 
         // Register
         Route::get('/register', [ClientAuthController::class, 'showRegisterForm'])->name('register');
-        Route::post('/register', [ClientAuthController::class, 'register'])->name('register.post'); // <--- Matches blade
+        Route::post('/register', [ClientAuthController::class, 'register'])->name('register.post');
 
-        // Google
+        // Google Auth
         Route::get('/auth/google', [ClientAuthController::class, 'redirectToGoogle'])->name('login.google');
         Route::get('/auth/google/callback', [ClientAuthController::class, 'handleGoogleCallback']);
     });
 
-    // AUTH ROUTES
+    // ----------------------------
+    // 2. AUTH ROUTES (Must be Logged In)
+    // ----------------------------
     Route::middleware(['auth', 'role:Client'])->group(function () {
+        
+        // Dashboard
         Route::get('/dashboard', [ClientPortalController::class, 'dashboard'])->name('dashboard');
 
-    // Documents and Messages Index
-    // ✅ CORRECTED: Remove "client." because the parent group adds it automatically
-    Route::get('/documents', [App\Http\Controllers\ClientDocumentController::class, 'index'])->name('documents.index');
-    Route::get('/messages', [App\Http\Controllers\ClientMessageController::class, 'index'])->name('messages.index');
+        // Documents
+        Route::get('/documents', [ClientPortalController::class, 'documents'])->name('documents.index');
+        
+        // Messages
+        Route::get('/messages', [ClientMessageController::class, 'index'])->name('messages.index');
+
         // Task Management
         Route::get('/tasks', [ClientPortalController::class, 'indexTasks'])->name('tasks.index');
         Route::get('/tasks/create', [ClientPortalController::class, 'createTask'])->name('tasks.create');
         Route::post('/tasks/store', [ClientPortalController::class, 'storeTask'])->name('tasks.store');
+        
+        // Task Details & Updates
         Route::get('/tasks/{task}', [ClientPortalController::class, 'showTask'])->name('tasks.show');
         Route::get('/tasks/{task}/edit', [ClientPortalController::class, 'edit'])->name('tasks.edit');
         Route::put('/tasks/{task}', [ClientPortalController::class, 'update'])->name('tasks.update');
+        
+        // Task Specific Chat/Messages
         Route::post('/tasks/{task}/message', [TaskMessageController::class, 'store'])->name('tasks.messages.store');
     });
    

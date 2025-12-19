@@ -4,6 +4,9 @@
 @section('content')
 <div class="container-fluid">
     
+    {{-- ✅ DISPLAY ANNOUNCEMENTS HERE --}}
+    @include('announcements.partials.display')
+    
     {{-- 1. WELCOME BANNER --}}
     <div class="row mb-3">
         <div class="col-12">

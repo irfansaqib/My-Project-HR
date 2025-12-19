@@ -29,7 +29,8 @@
                     
                     @if($msg->attachment_path)
                         <div class="mt-2 pt-2 border-top {{ $isMe ? 'border-white-50' : 'border-light' }}">
-                            <a href="{{ Storage::url($msg->attachment_path) }}" target="_blank" class="{{ $isMe ? 'text-white' : 'text-primary' }} small">
+                            {{-- FIX: Changed Storage::url to asset() to handle subdirectory paths correctly --}}
+                            <a href="{{ asset('storage/' . $msg->attachment_path) }}" target="_blank" class="{{ $isMe ? 'text-white' : 'text-primary' }} small">
                                 <i class="fas fa-paperclip mr-1"></i> View Attachment
                             </a>
                         </div>

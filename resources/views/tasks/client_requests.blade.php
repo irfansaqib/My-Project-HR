@@ -7,10 +7,22 @@
     
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="m-0 text-dark"><i class="fas fa-inbox me-2"></i>Incoming Client Requests</h4>
-        <ol class="breadcrumb float-sm-right">
-            <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
-            <li class="breadcrumb-item active">Client Requests</li>
-        </ol>
+        
+        <div class="d-flex align-items-center">
+            {{-- 
+                NEW DOCUMENTS BUTTON 
+                This links to a page where you can select a client to view their documents.
+                Ensure you have a route named 'admin.documents.clients' or change this href.
+            --}}
+            <a href="{{ route('admin.documents.clients') }}" class="btn btn-white border shadow-sm text-primary me-3">
+                <i class="fas fa-file-alt me-1"></i> Documents
+            </a>
+
+            <ol class="breadcrumb float-sm-right mb-0">
+                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
+                <li class="breadcrumb-item active">Client Requests</li>
+            </ol>
+        </div>
     </div>
 
     <div class="card shadow-sm">
@@ -23,41 +35,42 @@
                 <table class="table table-striped table-hover align-middle mb-0">
                     <thead class="thead-light">
                         <tr>
-                            <th class="ps-4" style="width: 80px;">ID</th>
-                            <th>Client Details</th>
-                            <th>Subject</th>
-                            <th>Date Submitted</th>
-                            <th>Assigned To</th>
-                            <th>Status</th>
-                            <th class="text-right pe-4">Action</th>
+                            <th class="ps-4 text-nowrap">ID</th>
+                            <th class="text-nowrap">Client Details</th>
+                            <th class="text-nowrap">Subject</th>
+                            <th class="text-nowrap">Date Submitted</th>
+                            <th class="text-nowrap">Assigned To</th>
+                            <th class="text-nowrap">Status</th>
+                            <th class="text-right pe-4 text-nowrap">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($tasks as $task)
                         <tr>
-                            <td class="ps-4 fw-bold">#{{ $task->id }}</td>
+                            {{-- Displays Auto-Generated Task Number (e.g. TSK-2025-001) or ID --}}
+                            <td class="ps-4 fw-bold text-nowrap">{{ $task->task_number ?? $task->id }}</td>
                             
-                            <td>
+                            <td class="text-nowrap">
                                 <div class="user-block">
                                     <span class="username text-primary" style="margin-left: 0px;">
-                                        {{ $task->client->name ?? 'Unknown Client' }}
+                                        {{ $task->client->business_name ?? $task->client->name ?? 'Unknown Client' }}
                                     </span>
-                                    <span class="description" style="margin-left: 0px;">
+                                    <div class="description text-muted small" style="margin-left: 0px;">
                                         {{ $task->creator->email ?? 'No Email' }}
-                                    </span>
+                                    </div>
                                 </div>
                             </td>
 
-                            <td>
-                                <span class="fw-bold">{{ Str::limit($task->title, 40) }}</span>
+                            <td class="text-nowrap">
+                                <span class="fw-bold">{{ Str::limit($task->description ?? 'No Description', 60) }}</span>
                             </td>
 
-                            <td>
+                            <td class="text-nowrap">
                                 {{ $task->created_at->format('d M, Y') }}<br>
                                 <small class="text-muted">{{ $task->created_at->format('h:i A') }}</small>
                             </td>
 
-                            <td>
+                            <td class="text-nowrap">
                                 @if($task->assignedEmployee)
                                     <span class="badge badge-success">
                                         {{ $task->assignedEmployee->name }}
@@ -67,7 +80,7 @@
                                 @endif
                             </td>
 
-                            <td>
+                            <td class="text-nowrap">
                                 @php
                                     $statusClass = match($task->status) {
                                         'Completed' => 'success',
@@ -80,8 +93,8 @@
                                 <span class="badge badge-{{ $statusClass }}">{{ $task->status }}</span>
                             </td>
 
-                            <td class="text-right pe-4">
-                                <a href="{{ route('tasks.edit', $task->id) }}" class="btn btn-sm btn-info">
+                            <td class="text-right pe-4 text-nowrap">
+                                <a href="{{ route('tasks.show', $task->id) }}" class="btn btn-sm btn-info">
                                     <i class="fas fa-eye"></i> View / Assign
                                 </a>
                             </td>

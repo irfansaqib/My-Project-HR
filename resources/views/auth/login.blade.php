@@ -55,7 +55,7 @@
           font-weight: 700; 
           font-size: 1.25rem; 
           line-height: 1.2;
-          margin-left: 20px; 
+          margin-left: 30px; 
       }
 
       /* NAVIGATION TABS STYLING */

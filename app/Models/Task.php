@@ -28,10 +28,10 @@ class Task extends Model
     }
 
     public function category()
-{
-    // Point to your ACTUAL existing model
-    return $this->belongsTo(TaskCategory::class, 'category_id');
-}
+    {
+        // We explicitly tell Laravel: "The column in the 'tasks' table is task_category_id"
+        return $this->belongsTo(TaskCategory::class, 'task_category_id');
+    }
 
     public function assignedEmployee()
     {
@@ -52,6 +52,13 @@ class Task extends Model
     public function messages()
     {
         return $this->hasMany(TaskMessage::class)->orderBy('created_at', 'asc');
+    }
+
+    // ✅ DOCUMENTS (Attachments)
+    // This tells the Task to look for files in the 'client_documents' table
+    public function documents()
+    {
+        return $this->hasMany(ClientDocument::class, 'task_id');
     }
 
     // ✅ EXTENSIONS (Due Date History)

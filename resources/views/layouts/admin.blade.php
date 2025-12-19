@@ -184,6 +184,12 @@
                             @can('shift-assignment-create')
                             <li class="nav-item"><a href="{{ route('shift-assignments.create') }}" class="nav-link {{ request()->routeIs('shift-assignments.create') ? 'active' : '' }}"><i class="far fa-circle nav-icon"></i><p>Shift Assignments</p></a></li>
                             @endcan
+                            <li class="nav-item">
+                                <a href="{{ route('admin.announcements.index') }}" class="nav-link {{ request()->routeIs('admin.announcements.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-bullhorn"></i>
+                                    <p>Announcements</p>
+                                </a>
+                            </li>
                         </ul>
                     </li>
                     @endcanany
@@ -418,8 +424,18 @@
     </div>
 
     <footer class="main-footer text-sm">
-        <div class="float-right d-none d-sm-inline">Version 2.1</div>
-        <strong>Copyright &copy; {{ date('Y') }} <a href="#">{{ Auth::user()->business->name ?? 'HR System' }}</a>.</strong> All rights reserved.
+        <div class="float-right d-none d-sm-inline">
+            Version 2.1
+        </div>
+        
+        <div class="d-inline-flex align-items-center">
+            <strong>Powered By ZAFinity Solutions. All Rights Reserved.</strong>
+            
+            <img src="{{ asset('storage/INH_HR_LOGO.png') }}" 
+                 alt="Logo" 
+                 style="height: 25px; width: auto; margin: 0 5px;">
+                 
+        </div>
     </footer>
 
 </div>

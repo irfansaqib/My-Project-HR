@@ -13,7 +13,8 @@
       /* Custom Professional Background */
       .content-wrapper {
           background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-          min-height: calc(100vh - 100px) !important; 
+          /* Adjusted for larger navbar */
+          min-height: calc(100vh - 130px) !important; 
       }
       .register-card-body {
           background: rgba(255, 255, 255, 0.98);
@@ -21,21 +22,21 @@
           border-radius: 0 0 5px 5px;
       }
       
-      /* NAVBAR STRUCTURAL FIXES */
+      /* ✅ NAVBAR HEIGHT INCREASED */
       .navbar-light {
           background-color: #ffffff;
           box-shadow: 0 4px 6px rgba(0,0,0,.05);
           padding-top: 10px;
           padding-bottom: 10px;
-          min-height: 90px; 
+          min-height: 90px; /* Force Navbar to be much taller */
       }
       
-      /* FORCE LOGO SIZE */
+      /* ✅ FORCE LOGO SIZE TO BE LARGE */
       .main-header .navbar-brand .brand-image {
-          height: 75px !important;    
+          height: 75px !important;    /* Increased to 100px */
           max-height: 75px !important; 
           width: auto !important;     
-          margin-right: 0px; /* Gap handled by text margin now */
+          margin-right: 0px; 
           float: none !important;     
           opacity: 1 !important;
           margin-top: 0 !important;   
@@ -48,13 +49,13 @@
           padding: 0;
       }
 
-      /* ✅ UPDATED PROJECT TEXT STYLING */
+      /* PROJECT TEXT STYLING */
       .brand-text {
-          color: #2b2d30ff; /* Changed to Blue to match Logo */
+          color: #333333; 
           font-weight: 700; 
-          font-size: 1.25rem; /* Reduced Size (was 1.5rem) */
+          font-size: 1.25rem; 
           line-height: 1.2;
-          margin-left: 20px; /* Increased Gap between Logo and Title */
+          margin-left: 30px; 
       }
 
       /* NAVIGATION TABS STYLING */
@@ -62,7 +63,7 @@
           font-weight: 600;
           color: #555 !important;
           margin: 0 10px;
-          font-size: 1rem;
+          font-size: 1.05rem;
           padding: 8px 15px !important; 
           border-radius: 5px;
           transition: all 0.3s;

@@ -4,11 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Task;
 use App\Models\TaskMessage;
+use App\Models\ClientDocument; // <--- IMPORT THIS
 use App\Models\User;
-use App\Notifications\TaskAlert; // ✅ Correct Import for Notifications
+use App\Notifications\TaskAlert;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class TaskMessageController extends Controller
@@ -23,8 +23,27 @@ class TaskMessageController extends Controller
 
         // 2. Handle File Upload
         $path = null;
+        $fileName = null;
+
         if ($request->hasFile('attachment')) {
-            $path = $request->file('attachment')->store('task_attachments', 'public');
+            $file = $request->file('attachment');
+            $fileName = $file->getClientOriginalName();
+            
+            // Save file to storage
+            $path = $file->storeAs('task_attachments', time() . '_' . $fileName, 'public');
+
+            // ---------------------------------------------------------
+            // NEW: Also save to 'ClientDocuments' table so it appears in "My Documents"
+            // ---------------------------------------------------------
+            ClientDocument::create([
+                'client_id'   => $task->client_id, // Link to the Task's Client
+                'task_id'     => $task->id,        // Link to this Task
+                'title'       => $fileName,
+                'description' => 'Uploaded via Chat in Task #' . $task->id,
+                'file_path'   => $path,
+                'file_type'   => $file->getClientOriginalExtension(),
+                'file_size'   => $this->formatSizeUnits($file->getSize()),
+            ]);
         }
 
         // 3. Save Message to Database
@@ -33,6 +52,7 @@ class TaskMessageController extends Controller
             'sender_id' => Auth::id(),
             'message' => $request->message,
             'attachment_path' => $path,
+            'file_name' => $fileName,
         ]);
 
         // 4. Send Notification (Email + Bell)
@@ -46,33 +66,47 @@ class TaskMessageController extends Controller
             if ($isClient) {
                 // Client sent message -> Notify Assigned Employee
                 if ($task->assignedEmployee) {
-                    // ✅ We must select the User Object, NOT the email string
                     $recipient = $task->assignedEmployee; 
                 } else {
-                    // If no employee assigned, notify an Admin/Owner
                     $recipient = User::role(['Admin', 'Owner'])->first();
                 }
             } else {
                 // Employee/Admin sent message -> Notify Client
-                // ✅ We must select the User Object, NOT the email string
                 $recipient = $task->client; 
             }
 
             // Send the Notification
             if ($recipient) {
-                // This sends BOTH the Email and adds it to the Database for the Bell Icon
-                // Ensure App\Notifications\TaskAlert's via() method returns ['mail', 'database']
                 $recipient->notify(new TaskAlert(
                     $task, 
                     'message', 
-                    "New Message: " . Str::limit($request->message, 30)
+                    "New Message from {$sender->name}: " . Str::limit($request->message, 30)
                 ));
             }
         } catch (\Exception $e) {
-            // Log error if needed, prevents crash if mail server fails
-            // \Illuminate\Support\Facades\Log::error("Notification Error: " . $e->getMessage());
+            // Log error if needed
         }
 
         return back()->with('success', 'Message sent.');
+    }
+
+    // Helper to format bytes to KB/MB (Required for ClientDocument table)
+    private function formatSizeUnits($bytes)
+    {
+        if ($bytes >= 1073741824) {
+            $bytes = number_format($bytes / 1073741824, 2) . ' GB';
+        } elseif ($bytes >= 1048576) {
+            $bytes = number_format($bytes / 1048576, 2) . ' MB';
+        } elseif ($bytes >= 1024) {
+            $bytes = number_format($bytes / 1024, 2) . ' KB';
+        } elseif ($bytes > 1) {
+            $bytes = $bytes . ' bytes';
+        } elseif ($bytes == 1) {
+            $bytes = $bytes . ' byte';
+        } else {
+            $bytes = '0 bytes';
+        }
+
+        return $bytes;
     }
 }

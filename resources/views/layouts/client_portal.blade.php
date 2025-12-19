@@ -26,14 +26,31 @@
         }
         .topbar { background-color: white; border-bottom: 1px solid #dee2e6; padding: 10px 25px; }
         .card-stat { border: none; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        
+        /* Logo Styling */
+        .portal-logo {
+            max-width: 150px; /* Adjust size as needed */
+            height: auto;
+            margin-bottom: 10px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
     </style>
 </head>
 <body>
 
+@php
+    // Attempt to find the client record associated with the current logged-in User ID
+    $clientInfo = \App\Models\Client::where('user_id', Auth::id())->first();
+@endphp
+
 <div class="d-flex">
     <div class="sidebar col-md-2 d-none d-md-block">
-        <div class="py-4 text-center">
-            <h4 class="fw-bold mb-0">CLIENT<span class="text-info">PORTAL</span></h4>
+        <div class="py-4 text-center bg-white">
+            <img src="{{ asset('storage/INH_HR_LOGO.png') }}" alt="Portal Logo" class="portal-logo">
+            
+            <h4 class="fw-bold mb-0 text-dark">CLIENT<span class="text-info">PORTAL</span></h4>
         </div>
         <hr class="border-secondary mx-3">
         <nav class="mt-3">
@@ -61,7 +78,22 @@
 
     <div class="flex-grow-1">
         <div class="topbar d-flex justify-content-between align-items-center">
-            <h5 class="m-0 text-muted">@yield('header', 'Dashboard')</h5>
+            
+            <div class="d-flex align-items-center">
+                <h5 class="m-0 text-muted">@yield('header', 'Dashboard')</h5>
+
+                @if($clientInfo)
+                    <div class="ms-3 ps-3 border-start border-2">
+                        <span class="fw-bold text-danger">
+                            {{ $clientInfo->business_name }} 
+                        </span>
+                        <span class="text-muted mx-1">|</span>
+                        <span class="text-dark">
+                            {{ $clientInfo->cnic ?? $clientInfo->registration_number ?? 'N/A' }}
+                        </span>
+                    </div>
+                @endif
+            </div>
             
             <div class="dropdown">
                 <button class="btn btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
